@@ -16,6 +16,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDealersRouteImport } from './routes/_authenticated/dealers'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedDealerIndexRouteImport } from './routes/_authenticated/dealer.index'
 import { Route as AuthenticatedDealerScanRouteImport } from './routes/_authenticated/dealer.scan'
@@ -56,6 +57,11 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedScanRoute = AuthenticatedScanRouteImport.update({
   id: '/scan',
   path: '/scan',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/dealers': typeof AuthenticatedDealersRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/scan': typeof AuthenticatedScanRoute
   '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/dealers': typeof AuthenticatedDealersRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/scan': typeof AuthenticatedScanRoute
   '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_authenticated/dealers': typeof AuthenticatedDealersRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/_authenticated/dealer/stock': typeof AuthenticatedDealerStockRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/dealers'
     | '/notifications'
     | '/onboarding'
+    | '/profile'
     | '/scan'
     | '/dealer/scan'
     | '/dealer/stock'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/dealers'
     | '/notifications'
     | '/onboarding'
+    | '/profile'
     | '/scan'
     | '/dealer/scan'
     | '/dealer/stock'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dealers'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
+    | '/_authenticated/profile'
     | '/_authenticated/scan'
     | '/_authenticated/dealer/scan'
     | '/_authenticated/dealer/stock'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/scan': {
       id: '/_authenticated/scan'
       path: '/scan'
@@ -250,6 +269,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDealersRoute: typeof AuthenticatedDealersRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
   AuthenticatedDealerScanRoute: typeof AuthenticatedDealerScanRoute
   AuthenticatedDealerStockRoute: typeof AuthenticatedDealerStockRoute
@@ -261,6 +281,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDealersRoute: AuthenticatedDealersRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
   AuthenticatedDealerScanRoute: AuthenticatedDealerScanRoute,
   AuthenticatedDealerStockRoute: AuthenticatedDealerStockRoute,

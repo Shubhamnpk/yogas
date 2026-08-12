@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { DEMO_ACCOUNTS } from "@/lib/gas";
+
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -106,6 +108,22 @@ function AuthPage() {
     }
     if (result.redirected) return;
   };
+
+  const demoLogin = async (kind: "consumer" | "dealer") => {
+    setBusy(true);
+    const creds = DEMO_ACCOUNTS[kind];
+    const { error } = await supabase.auth.signInWithPassword({
+      email: creds.email,
+      password: creds.password,
+    });
+    setBusy(false);
+    if (error) {
+      toast.error("Demo account unavailable right now");
+      return;
+    }
+    toast.success(`Signed in as the demo ${kind}`);
+  };
+
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -226,6 +244,34 @@ function AuthPage() {
           <Button variant="outline" className="w-full" onClick={handleGoogle} disabled={busy}>
             Continue with Google
           </Button>
+
+          <div className="mt-6 rounded-xl border border-dashed border-border bg-secondary/50 p-4">
+            <p className="text-sm font-semibold">Try the demo</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Two ready-made accounts so you can test both sides.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => void demoLogin("consumer")}
+              >
+                <User className="size-4" /> Consumer
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => void demoLogin("dealer")}
+              >
+                <Store className="size-4" /> Dealer
+              </Button>
+            </div>
+          </div>
+
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signin" ? "New to GasQueue?" : "Already have an account?"}{" "}

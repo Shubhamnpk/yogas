@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import QrScanner from "@/components/QrScanner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDateTime, maskCitizenship, parseScanPayload, type EntryStatus } from "@/lib/gas";
 
@@ -45,6 +47,8 @@ function DealerScan() {
   const [result, setResult] = useState<Found | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [manual, setManual] = useState("");
+
 
   const lookup = useCallback(
     async (consumerId: string) => {
@@ -92,6 +96,28 @@ function DealerScan() {
     void refresh();
   };
 
+  const manualLookup = async () => {
+    const code = manual.trim().toUpperCase();
+    if (code.length < 4) {
+      toast.error("Enter the consumer's collection code");
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("consumer_id_by_code", { _code: code });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (!data) {
+      setResult(null);
+      setNotFound(true);
+      return;
+    }
+    setManual("");
+    await lookup(data as string);
+  };
+
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div className="text-center">
@@ -105,6 +131,26 @@ function DealerScan() {
       </div>
 
       <QrScanner onResult={onResult} paused={Boolean(result)} />
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+        <p className="text-sm font-medium">Camera not working?</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Type the collection code printed on the consumer's profile.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <Input
+            value={manual}
+            onChange={(e) => setManual(e.target.value.toUpperCase())}
+            placeholder="e.g. 7KQ4M2"
+            maxLength={12}
+            className="tracking-widest"
+          />
+          <Button variant="outline" onClick={() => void manualLookup()} disabled={busy}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : null} Look up
+          </Button>
+        </div>
+      </div>
+
 
       {notFound ? (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center">

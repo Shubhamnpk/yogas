@@ -11,9 +11,12 @@ export type Profile = {
   full_name: string | null;
   citizenship_no: string | null;
   address: string | null;
+  district: string | null;
+  collection_code: string | null;
   phone: string | null;
   email: string | null;
 };
+
 
 export type Dealer = {
   id: string;
@@ -106,7 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profileComplete = Boolean(
       role === "dealer"
         ? dealer && profile?.full_name && profile?.username
-        : profile?.full_name && profile?.username && profile?.citizenship_no && profile?.address,
+        : profile?.full_name &&
+          profile?.username &&
+          profile?.citizenship_no &&
+          profile?.address &&
+          profile?.district,
+
     );
     return { loading, user, session, profile, role, dealer, profileComplete, refresh, signOut };
   }, [loading, session, profile, role, dealer, refresh, signOut]);

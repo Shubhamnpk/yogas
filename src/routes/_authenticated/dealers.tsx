@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CYLINDER_SIZES, NEPAL_DISTRICTS, stockLabel } from "@/lib/gas";
+import { CYLINDER_LABEL, CYLINDER_SIZE, NEPAL_DISTRICTS, stockLabel } from "@/lib/gas";
 import type { Dealer } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/dealers")({
@@ -45,24 +45,29 @@ export const Route = createFileRoute("/_authenticated/dealers")({
 
 const requestSchema = z.object({
   quantity: z.number().int().min(1).max(3),
-  cylinder_size: z.string().min(1),
   note: z.string().trim().max(240).optional().or(z.literal("")),
 });
 
 function DealersPage() {
   const { depot } = Route.useSearch();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [district, setDistrict] = useState("all");
+  const [district, setDistrict] = useState<string | null>(null);
   const [list, setList] = useState<(Dealer & { waiting?: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Dealer | null>(null);
-  const [form, setForm] = useState({ quantity: "1", cylinder_size: CYLINDER_SIZES[0]!, note: "" });
+  const [form, setForm] = useState({ quantity: "1", note: "" });
   const [busy, setBusy] = useState(false);
-  const [myDealerIds, setMyDealerIds] = useState<string[]>([]);
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+
+  // Default the filter to the consumer's own district.
+  useEffect(() => {
+    if (district === null) setDistrict(profile?.district ?? "all");
+  }, [profile?.district, district]);
 
   const load = useCallback(async () => {
+    if (district === null) return;
     setLoading(true);
     let q = supabase.from("dealers").select("*").eq("is_active", true);
     if (district !== "all") q = q.eq("district", district);
@@ -88,10 +93,10 @@ function DealersPage() {
     if (!user) return;
     void supabase
       .from("waitlist_entries")
-      .select("dealer_id, status")
+      .select("id, status")
       .eq("consumer_id", user.id)
       .in("status", ["waiting", "allotted"])
-      .then(({ data }) => setMyDealerIds((data ?? []).map((r) => r.dealer_id as string)));
+      .then(({ data }) => setHasActiveRequest((data ?? []).length > 0));
   }, [user, active]);
 
   useEffect(() => {
@@ -112,7 +117,6 @@ function DealersPage() {
     if (!user || !active) return;
     const parsed = requestSchema.safeParse({
       quantity: Number(form.quantity),
-      cylinder_size: form.cylinder_size,
       note: form.note,
     });
     if (!parsed.success) {
@@ -124,20 +128,20 @@ function DealersPage() {
       dealer_id: active.id,
       consumer_id: user.id,
       quantity: parsed.data.quantity,
-      cylinder_size: parsed.data.cylinder_size,
+      cylinder_size: CYLINDER_SIZE,
       note: parsed.data.note || null,
     });
     setBusy(false);
     if (error) {
       toast.error(
-        error.message.includes("duplicate") || error.code === "23505"
-          ? "You're already in this depot's queue"
+        error.code === "23505"
+          ? "You already have an active request. Cancel it before joining another queue."
           : error.message,
       );
       return;
     }
     setActive(null);
-    setForm({ quantity: "1", cylinder_size: CYLINDER_SIZES[0]!, note: "" });
+    setForm({ quantity: "1", note: "" });
     toast.success("You've joined the waitlist");
     void navigate({ to: "/dashboard" });
   };
@@ -147,7 +151,9 @@ function DealersPage() {
       <div>
         <h1 className="font-display text-3xl font-bold">Find a depot</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Search by name or filter by district, then request a cylinder.
+          Showing depots in{" "}
+          {district && district !== "all" ? district : "every district"} — search by name to narrow
+          it down.
         </p>
       </div>
 
@@ -162,7 +168,7 @@ function DealersPage() {
             maxLength={60}
           />
         </div>
-        <Select value={district} onValueChange={setDistrict}>
+        <Select value={district ?? "all"} onValueChange={setDistrict}>
           <SelectTrigger className="sm:w-56">
             <SelectValue placeholder="All districts" />
           </SelectTrigger>
@@ -177,19 +183,32 @@ function DealersPage() {
         </Select>
       </div>
 
+      {hasActiveRequest ? (
+        <p className="rounded-xl border border-border bg-secondary/60 px-4 py-3 text-sm text-muted-foreground">
+          You already have an active request. Collect or cancel it before joining another depot's
+          queue.
+        </p>
+      ) : null}
+
       {loading ? (
         <div className="grid h-40 place-items-center">
           <Loader2 className="size-5 animate-spin text-primary" />
         </div>
       ) : list.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-          No depots match your search.
-        </p>
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+          <p className="text-sm text-muted-foreground">
+            No depots {district && district !== "all" ? `in ${district}` : ""} match your search.
+          </p>
+          {district && district !== "all" ? (
+            <Button variant="outline" className="mt-4" onClick={() => setDistrict("all")}>
+              Search all districts
+            </Button>
+          ) : null}
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {list.map((d) => {
             const s = stockLabel(d.stock);
-            const joined = myDealerIds.includes(d.id);
             return (
               <div key={d.id} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
                 <div className="flex items-start justify-between gap-3">
@@ -230,11 +249,11 @@ function DealersPage() {
 
                 <Button
                   className="mt-4 w-full"
-                  disabled={joined}
+                  disabled={hasActiveRequest}
                   onClick={() => setActive(d)}
-                  variant={joined ? "outline" : "default"}
+                  variant={hasActiveRequest ? "outline" : "default"}
                 >
-                  {joined ? "Already in this queue" : "Request a cylinder"}
+                  {hasActiveRequest ? "You're already in a queue" : "Request a cylinder"}
                 </Button>
               </div>
             );
@@ -252,23 +271,9 @@ function DealersPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Cylinder type</Label>
-              <Select
-                value={form.cylinder_size}
-                onValueChange={(v) => setForm({ ...form, cylinder_size: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CYLINDER_SIZES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="rounded-xl bg-secondary/60 px-4 py-3 text-sm">
+              <span className="font-medium">Cylinder:</span> {CYLINDER_LABEL} (the only size
+              distributed right now)
             </div>
             <div className="space-y-2">
               <Label>Quantity</Label>

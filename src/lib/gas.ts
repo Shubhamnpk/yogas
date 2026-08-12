@@ -13,7 +13,15 @@ export type WaitlistEntry = {
   collected_at: string | null;
 };
 
-export const CYLINDER_SIZES = ["14.2kg (Domestic)", "5kg (Small)", "47.5kg (Commercial)"];
+/** Only one cylinder type is distributed at the moment. */
+export const CYLINDER_SIZE = "14.2kg";
+export const CYLINDER_LABEL = "14.2 kg cylinder";
+
+export const DEMO_ACCOUNTS = {
+  consumer: { email: "demo.consumer@gasqueue.app", password: "demo1234" },
+  dealer: { email: "demo.dealer@gasqueue.app", password: "demo1234" },
+} as const;
+
 
 export const NEPAL_DISTRICTS = [
   "Kathmandu",
