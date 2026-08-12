@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/dealer/scan")({
       { property: "og:description", content: "Instant verification at your depot counter." },
     ],
   }),
-  component: DealerScan;
+  component: DealerScan,
 });
 
 type Found = {
