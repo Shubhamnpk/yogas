@@ -38,7 +38,9 @@ const consumerSchema = z.object({
     .max(30)
     .regex(/^[0-9A-Za-z\-/ ]+$/, "Only numbers, letters, dashes and slashes"),
   address: z.string().trim().min(4, "Enter your address").max(160),
+  district: z.string().trim().min(2, "Choose your district"),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
+
 });
 
 const dealerSchema = z.object({
@@ -62,6 +64,7 @@ function Onboarding() {
     username: "",
     citizenship_no: "",
     address: "",
+    district: "",
     phone: "",
   });
   const [d, setD] = useState({
@@ -79,10 +82,12 @@ function Onboarding() {
         username: prev.username || (profile.username ?? ""),
         citizenship_no: prev.citizenship_no || (profile.citizenship_no ?? ""),
         address: prev.address || (profile.address ?? ""),
+        district: prev.district || (profile.district ?? ""),
         phone: prev.phone || (profile.phone ?? ""),
       }));
     }
   }, [profile]);
+
 
   useEffect(() => {
     if (profileComplete) {
@@ -112,9 +117,11 @@ function Onboarding() {
       full_name: parsed.data.full_name,
       citizenship_no: parsed.data.citizenship_no,
       address: parsed.data.address,
+      district: parsed.data.district,
       phone: parsed.data.phone || null,
       username: parsed.data.username.toLowerCase(),
     });
+
     setBusy(false);
     if (error) {
       toast.error(error.message.includes("duplicate") ? "That username is taken" : error.message);
@@ -142,7 +149,9 @@ function Onboarding() {
       email: user.email ?? null,
       full_name: c.full_name.trim(),
       username: c.username.trim().toLowerCase(),
+      district: parsed.data.district,
       phone: parsed.data.phone || null,
+
     });
     if (pErr) {
       setBusy(false);
@@ -247,6 +256,21 @@ function Onboarding() {
                 maxLength={160}
               />
             </Field>
+            <Field label="District">
+              <Select value={c.district} onValueChange={(v) => setC({ ...c, district: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select district" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NEPAL_DISTRICTS.map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
             <Field label="Phone (optional)">
               <Input
                 value={c.phone}

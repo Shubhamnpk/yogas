@@ -90,7 +90,9 @@ export type Database = {
         Row: {
           address: string | null
           citizenship_no: string | null
+          collection_code: string | null
           created_at: string
+          district: string | null
           email: string | null
           full_name: string | null
           id: string
@@ -101,7 +103,9 @@ export type Database = {
         Insert: {
           address?: string | null
           citizenship_no?: string | null
+          collection_code?: string | null
           created_at?: string
+          district?: string | null
           email?: string | null
           full_name?: string | null
           id: string
@@ -112,7 +116,9 @@ export type Database = {
         Update: {
           address?: string | null
           citizenship_no?: string | null
+          collection_code?: string | null
           created_at?: string
+          district?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
@@ -258,7 +264,9 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      consumer_id_by_code: { Args: { _code: string }; Returns: string }
       dealer_waiting_count: { Args: { _dealer_id: string }; Returns: number }
+      gen_collection_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

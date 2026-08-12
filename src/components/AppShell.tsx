@@ -1,13 +1,25 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Bell, Flame, LayoutGrid, LogOut, QrCode, Store, Boxes, ScanLine } from "lucide-react";
+import {
+  Bell,
+  Flame,
+  LayoutGrid,
+  LogOut,
+  QrCode,
+  Store,
+  Boxes,
+  ScanLine,
+  UserRound,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { QrFab } from "@/components/QrFab";
 
 type NavItem = { to: string; label: string; icon: typeof Flame };
+
 
 const CONSUMER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Home", icon: LayoutGrid },
@@ -94,15 +106,26 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold leading-tight">{title}</p>
-              <p className="text-xs capitalize text-muted-foreground">{role ?? "member"}</p>
-            </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
+            >
+              <span className="grid size-8 place-items-center rounded-full bg-secondary text-secondary-foreground">
+                <UserRound className="size-4" />
+              </span>
+              <span className="hidden text-right sm:block">
+                <span className="block text-sm font-semibold leading-tight">{title}</span>
+                <span className="block text-xs capitalize text-muted-foreground">
+                  {role ?? "member"}
+                </span>
+              </span>
+            </Link>
             <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sign out">
               <LogOut className="size-4" />
             </Button>
           </div>
+
         </div>
       </header>
 
@@ -132,6 +155,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </div>
       </nav>
+
+      <QrFab />
     </div>
+
   );
 }
