@@ -18,6 +18,7 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedDealerIndexRouteImport } from './routes/_authenticated/dealer.index'
+import { Route as AuthenticatedDealerScanRouteImport } from './routes/_authenticated/dealer.scan'
 import { Route as AuthenticatedDealerStockRouteImport } from './routes/_authenticated/dealer.stock'
 
 const IndexRoute = IndexRouteImport.update({
@@ -66,6 +67,11 @@ const AuthenticatedDealerIndexRoute =
     path: '/dealer/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDealerScanRoute = AuthenticatedDealerScanRouteImport.update({
+  id: '/dealer/scan',
+  path: '/dealer/scan',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDealerStockRoute =
   AuthenticatedDealerStockRouteImport.update({
     id: '/dealer/stock',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/scan': typeof AuthenticatedScanRoute
+  '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
   '/dealer/': typeof AuthenticatedDealerIndexRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/scan': typeof AuthenticatedScanRoute
+  '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
   '/dealer': typeof AuthenticatedDealerIndexRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
+  '/_authenticated/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/_authenticated/dealer/stock': typeof AuthenticatedDealerStockRoute
   '/_authenticated/dealer/': typeof AuthenticatedDealerIndexRoute
 }
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/onboarding'
     | '/scan'
+    | '/dealer/scan'
     | '/dealer/stock'
     | '/dealer/'
   fileRoutesByTo: FileRoutesByTo
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/onboarding'
     | '/scan'
+    | '/dealer/scan'
     | '/dealer/stock'
     | '/dealer'
   id:
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
     | '/_authenticated/scan'
+    | '/_authenticated/dealer/scan'
     | '/_authenticated/dealer/stock'
     | '/_authenticated/dealer/'
   fileRoutesById: FileRoutesById
@@ -216,6 +228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDealerIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dealer/scan': {
+      id: '/_authenticated/dealer/scan'
+      path: '/dealer/scan'
+      fullPath: '/dealer/scan'
+      preLoaderRoute: typeof AuthenticatedDealerScanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dealer/stock': {
       id: '/_authenticated/dealer/stock'
       path: '/dealer/stock'
@@ -232,6 +251,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
+  AuthenticatedDealerScanRoute: typeof AuthenticatedDealerScanRoute
   AuthenticatedDealerStockRoute: typeof AuthenticatedDealerStockRoute
   AuthenticatedDealerIndexRoute: typeof AuthenticatedDealerIndexRoute
 }
@@ -242,6 +262,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
+  AuthenticatedDealerScanRoute: AuthenticatedDealerScanRoute,
   AuthenticatedDealerStockRoute: AuthenticatedDealerStockRoute,
   AuthenticatedDealerIndexRoute: AuthenticatedDealerIndexRoute,
 }
