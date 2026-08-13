@@ -18,7 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { consumerQrValue, depotQrValue, maskCitizenship, NEPAL_DISTRICTS } from "@/lib/gas";
+import {
+  consumerQrValue,
+  depotQrValue,
+  friendlyError,
+  maskCitizenship,
+  NEPAL_DISTRICTS,
+} from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -94,7 +100,7 @@ function ProfilePage() {
       toast.success("Profile updated");
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update profile");
+      toast.error(friendlyError(error, "Could not update profile"));
     } finally {
       setBusy(false);
     }
@@ -150,7 +156,9 @@ function ProfilePage() {
           <div className="space-y-2">
             <Label>Username</Label>
             <Input value={profile?.username ?? ""} readOnly disabled />
-            <p className="text-xs text-muted-foreground">This is auto-generated for your account.</p>
+            <p className="text-xs text-muted-foreground">
+              This is auto-generated for your account.
+            </p>
           </div>
           {!isDealer ? (
             <div className="space-y-2">
@@ -176,10 +184,7 @@ function ProfilePage() {
           ) : null}
           <div className="space-y-2">
             <Label>District</Label>
-            <Select
-              value={form.district}
-              onValueChange={(v) => setForm({ ...form, district: v })}
-            >
+            <Select value={form.district} onValueChange={(v) => setForm({ ...form, district: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Select district" />
               </SelectTrigger>
@@ -242,7 +247,7 @@ function ProfilePage() {
           </p>
           {qrValue ? (
             <div className="mx-auto w-fit rounded-2xl bg-white p-4">
-              <QRCodeSVG value={qrValue} size={168} level="M" />
+              <QRCodeSVG value={qrValue} size={128} level="M" />
             </div>
           ) : null}
           <p className="font-display text-2xl font-bold tracking-widest">{code || "—"}</p>

@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -22,14 +22,21 @@ export function QrFab({ open, onOpenChange }: Props) {
   const { role } = useAuth();
   const navigate = useNavigate();
   const [paused, setPaused] = useState(false);
+  const handled = useRef(false);
 
   const handleResult = (text: string) => {
+    if (handled.current) return;
     const parsed = parseScanPayload(text);
     if (role === "dealer") {
       if (parsed.kind !== "consumer") {
-        toast.error("Scan a consumer code here.");
+        toast.error(
+          parsed.kind === "depot"
+            ? "That's the depot's code (for customers to join). Scan the customer's QR from their phone instead."
+            : "Couldn't read a consumer code. Show the customer's QR to the camera.",
+        );
         return;
       }
+      handled.current = true;
       setPaused(true);
       onOpenChange(false);
       void navigate({ to: "/dealer/scan", search: { code: parsed.value } });
@@ -37,9 +44,14 @@ export function QrFab({ open, onOpenChange }: Props) {
     }
 
     if (parsed.kind !== "depot") {
-      toast.error("Scan a depot code here.");
+      toast.error(
+        parsed.kind === "consumer"
+          ? "That's a consumer's code. Scan the depot's code at the counter instead."
+          : "Couldn't read a depot code. Point the camera at the depot's QR.",
+      );
       return;
     }
+    handled.current = true;
     setPaused(true);
     onOpenChange(false);
     void navigate({ to: "/dealers", search: { depot: parsed.value } });
@@ -56,6 +68,7 @@ export function QrFab({ open, onOpenChange }: Props) {
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
+        if (next) handled.current = false;
         if (!next) setPaused(false);
       }}
     >
@@ -67,7 +80,7 @@ export function QrFab({ open, onOpenChange }: Props) {
       >
         <ScanLine className="size-6" />
       </button>
-      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md lg:max-w-xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

@@ -19,7 +19,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { depotQrValue, timeAgo } from "@/lib/gas";
+import { depotQrValue, friendlyError, timeAgo } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/dealer/")({
   head: () => ({
@@ -104,7 +104,7 @@ function DealerHome() {
       }
       toast.success(fn === "allot" ? "Cylinder allotted" : "Request cancelled");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update request");
+      toast.error(friendlyError(error, "Could not update request"));
     } finally {
       setBusyId(null);
     }
@@ -217,7 +217,7 @@ function DealerHome() {
             Print this. Consumers scan it to join your queue.
           </p>
           <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-3">
-            <QRCodeSVG value={depotQrValue(dealer.code)} size={144} level="M" />
+            <QRCodeSVG value={depotQrValue(dealer.code)} size={128} level="M" />
           </div>
           <p className="mt-3 font-display text-lg font-bold tracking-wide">{dealer.code}</p>
           <p className="text-xs text-muted-foreground">{dealer.business_name}</p>

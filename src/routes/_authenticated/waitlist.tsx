@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
-import { formatDateTime, timeAgo } from "@/lib/gas";
+import { formatDateTime, friendlyError, timeAgo } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/waitlist")({
   head: () => ({
@@ -66,7 +66,7 @@ function WaitlistPage() {
       );
       toast.success("Request cancelled");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not cancel request");
+      toast.error(friendlyError(error, "Could not cancel request"));
     } finally {
       setBusyId(null);
     }
@@ -81,7 +81,7 @@ function WaitlistPage() {
       );
       toast.success("Collection confirmed — cylinder handed over");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not confirm collection");
+      toast.error(friendlyError(error, "Could not confirm collection"));
     } finally {
       setBusyId(null);
     }
@@ -176,7 +176,6 @@ function WaitlistPage() {
                       <th className="border-b border-border px-4 py-3">Depot</th>
                       <th className="border-b border-border px-4 py-3">Your place</th>
                       <th className="border-b border-border px-4 py-3">Status</th>
-                      <th className="border-b border-border px-4 py-3">Cylinder</th>
                       <th className="border-b border-border px-4 py-3">Qty</th>
                       <th className="border-b border-border px-4 py-3">Requested</th>
                       <th className="border-b border-border px-4 py-3">Updated</th>
@@ -203,9 +202,6 @@ function WaitlistPage() {
                         </td>
                         <td className="border-b border-border px-4 py-4">
                           <StatusBadge status={row.status} />
-                        </td>
-                        <td className="border-b border-border px-4 py-4 text-sm">
-                          {row.cylinderSize}
                         </td>
                         <td className="border-b border-border px-4 py-4 text-sm">{row.quantity}</td>
                         <td className="border-b border-border px-4 py-4 text-sm text-muted-foreground">

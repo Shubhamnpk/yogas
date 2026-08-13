@@ -20,15 +20,8 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { formatDateTime, maskCitizenship, timeAgo } from "@/lib/gas";
+import { formatDateTime, friendlyError, maskCitizenship, timeAgo } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/dealer/waitlist")({
   head: () => ({
@@ -84,7 +77,6 @@ function DealerWaitlistPage() {
   );
   const [tab, setTab] = useState<Tab>("waiting");
   const [search, setSearch] = useState("");
-  const [cylinder, setCylinder] = useState("all");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -100,8 +92,6 @@ function DealerWaitlistPage() {
       ...queue.cancelled.map((e) => ({ ...e, status: "cancelled" as const })),
     ].sort((a, b) => b.createdAt - a.createdAt);
   }, [queue]);
-
-  const sizes = useMemo(() => [...new Set(allRows.map((r) => r.cylinderSize))].sort(), [allRows]);
 
   const counts = useMemo(() => {
     const c: Record<Tab, number> = {
@@ -119,7 +109,6 @@ function DealerWaitlistPage() {
     const q = search.trim().toLowerCase();
     let rows = allRows;
     if (tab !== "all") rows = rows.filter((r) => r.status === tab);
-    if (cylinder !== "all") rows = rows.filter((r) => r.cylinderSize === cylinder);
     if (q) {
       rows = rows.filter((r) =>
         [r.consumer?.fullName, r.consumer?.citizenshipNo, r.consumer?.phone, r.note]
@@ -130,7 +119,7 @@ function DealerWaitlistPage() {
     return rows.sort((a, b) =>
       sort === "newest" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt,
     );
-  }, [allRows, tab, cylinder, search, sort]);
+  }, [allRows, tab, search, sort]);
 
   const visibleWaiting = useMemo(() => filtered.filter((r) => r.status === "waiting"), [filtered]);
   const selectedWaiting = visibleWaiting.filter((r) => selected.has(r._id));
@@ -168,7 +157,7 @@ function DealerWaitlistPage() {
             : "Request cancelled",
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update request");
+      toast.error(friendlyError(error, "Could not update request"));
     } finally {
       setBusyId(null);
     }
@@ -216,7 +205,7 @@ function DealerWaitlistPage() {
         toast.warning(`${result.skipped} could not be allotted (no longer waiting or no stock).`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not allot the selection");
+      toast.error(friendlyError(error, "Could not allot the selection"));
     } finally {
       setBulkBusy(false);
     }
@@ -236,7 +225,7 @@ function DealerWaitlistPage() {
         `Auto-allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"} right now — the next customers are now allotted.`,
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not auto-allot");
+      toast.error(friendlyError(error, "Could not auto-allot"));
     } finally {
       setAutoBusy(false);
     }
@@ -275,19 +264,6 @@ function DealerWaitlistPage() {
             className="pl-9"
           />
         </div>
-        <Select value={cylinder} onValueChange={setCylinder}>
-          <SelectTrigger className="sm:w-44">
-            <SelectValue placeholder="Cylinder size" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sizes</SelectItem>
-            {sizes.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Button
           variant="outline"
           size="icon"
@@ -402,7 +378,6 @@ function DealerWaitlistPage() {
                   <th className="border-b border-border px-4 py-3">Consumer</th>
                   <th className="border-b border-border px-4 py-3">Citizenship</th>
                   <th className="border-b border-border px-4 py-3">Status</th>
-                  <th className="border-b border-border px-4 py-3">Cylinder</th>
                   <th className="border-b border-border px-4 py-3">Qty</th>
                   <th className="border-b border-border px-4 py-3">Requested</th>
                   <th className="border-b border-border px-4 py-3">Updated</th>
@@ -452,7 +427,6 @@ function DealerWaitlistPage() {
                     <td className="border-b border-border px-4 py-4">
                       <StatusBadge status={row.status} />
                     </td>
-                    <td className="border-b border-border px-4 py-4 text-sm">{row.cylinderSize}</td>
                     <td className="border-b border-border px-4 py-4 text-sm">{row.quantity}</td>
                     <td className="border-b border-border px-4 py-4 text-sm text-muted-foreground">
                       {timeAgo(row.createdAt)}

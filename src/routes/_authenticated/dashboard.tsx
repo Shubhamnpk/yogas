@@ -2,7 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { QRCodeSVG } from "qrcode.react";
-import { Check, Clock3, Loader2, PackageCheck, Search, Store, Ticket, Trash2, X } from "lucide-react";
+import {
+  Check,
+  Clock3,
+  Loader2,
+  PackageCheck,
+  Search,
+  Store,
+  Ticket,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -54,7 +64,9 @@ function ConsumerDashboard() {
             Namaste, {profile?.full_name?.split(" ")[0] ?? "friend"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {stats === undefined ? "Loading your queue summary..." : `You have ${stats.active} active request${stats.active === 1 ? "" : "s"}.`}
+            {stats === undefined
+              ? "Loading your queue summary..."
+              : `You have ${stats.active} active request${stats.active === 1 ? "" : "s"}.`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -89,7 +101,8 @@ function ConsumerDashboard() {
           <Ticket className="mx-auto size-8 text-muted-foreground" />
           <p className="mt-3 font-semibold">Your detailed waitlist lives on a separate page</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Open the waitlist to review every request in a table, cancel active ones, and keep the dashboard fast.
+            Open the waitlist to review every request in a table, cancel active ones, and keep the
+            dashboard fast.
           </p>
           <Button asChild className="mt-5">
             <Link to="/waitlist">Open waitlist</Link>
@@ -100,7 +113,9 @@ function ConsumerDashboard() {
           <h2 className="font-semibold">Your collection code</h2>
           <p className="mt-1 text-sm text-muted-foreground">The dealer scans this to verify you.</p>
           <div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-4">
-            {user ? <QRCodeSVG value={consumerQrValue(user.accountId)} size={168} level="M" /> : null}
+            {user ? (
+              <QRCodeSVG value={consumerQrValue(user.accountId)} size={128} level="M" />
+            ) : null}
           </div>
           <p className="mt-4 text-sm font-semibold">{profile?.full_name}</p>
           <p className="text-xs text-muted-foreground">
@@ -171,9 +186,7 @@ function AdminDashboard() {
     setBusy(dealerId);
     try {
       await unapproveDealer(
-        sessionToken
-          ? { sessionToken, dealerId }
-          : { accountId: user.accountId, dealerId },
+        sessionToken ? { sessionToken, dealerId } : { accountId: user.accountId, dealerId },
       );
       toast.success("Depot unapproved");
     } catch (err) {
@@ -189,9 +202,7 @@ function AdminDashboard() {
     setBusy(dealerId);
     try {
       await deleteDealer(
-        sessionToken
-          ? { sessionToken, dealerId }
-          : { accountId: user.accountId, dealerId },
+        sessionToken ? { sessionToken, dealerId } : { accountId: user.accountId, dealerId },
       );
       toast.success("Depot deleted");
     } catch (err) {
@@ -411,9 +422,7 @@ function AdminDashboard() {
                     <TableRow key={u.id}>
                       <TableCell className="font-semibold">{u.fullName}</TableCell>
                       <TableCell className="text-xs">{u.email}</TableCell>
-                      <TableCell className="text-xs">
-                        {maskCitizenship(u.citizenshipNo)}
-                      </TableCell>
+                      <TableCell className="text-xs">{maskCitizenship(u.citizenshipNo)}</TableCell>
                       <TableCell>{u.district}</TableCell>
                       <TableCell className="font-mono text-xs">{u.collectionCode}</TableCell>
                       <TableCell>{u.totalPurchasedQuantity}</TableCell>

@@ -25,7 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CYLINDER_LABEL, CYLINDER_SIZE, NEPAL_DISTRICTS, stockLabel } from "@/lib/gas";
+import {
+  CYLINDER_LABEL,
+  CYLINDER_SIZE,
+  NEPAL_DISTRICTS,
+  formatDateTime,
+  friendlyError,
+  stockLabel,
+} from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/dealers")({
   head: () => ({
@@ -92,7 +99,9 @@ function DealersPage() {
     () => new Set((activeRequests ?? []).map((request) => request.dealerId)),
     [activeRequests],
   );
-  const hasAllottedRequest = (activeRequests ?? []).some((request) => request.status === "allotted");
+  const hasAllottedRequest = (activeRequests ?? []).some(
+    (request) => request.status === "allotted",
+  );
 
   const submit = async () => {
     if (!user || !active) return;
@@ -114,11 +123,20 @@ function DealersPage() {
         note: parsed.data.note || undefined,
       });
       setActive(null);
-        setForm({ quantity: "1", note: "" });
+      setForm({ quantity: "1", note: "" });
       toast.success("You've joined the waitlist");
       void navigate({ to: "/dashboard" });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not join the waitlist");
+      const raw = error instanceof Error ? error.message : "";
+      if (/cooling period/i.test(raw)) {
+        toast.error(
+          profile?.cooldown_until && profile.cooldown_until > Date.now()
+            ? `You're cooling down after your last collection. You can request gas again after ${formatDateTime(profile.cooldown_until)}.`
+            : "You're cooling down after your last collection — try again later.",
+        );
+      } else {
+        toast.error(friendlyError(error, "Could not join the waitlist"));
+      }
     } finally {
       setBusy(false);
     }
@@ -129,8 +147,8 @@ function DealersPage() {
       <div>
         <h1 className="font-display text-3xl font-bold">Find a depot</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Showing depots in {district && district !== "all" ? district : "every district"} — search by
-          name to narrow it down.
+          Showing depots in {district && district !== "all" ? district : "every district"} — search
+          by name to narrow it down.
         </p>
       </div>
 
@@ -248,7 +266,8 @@ function DealersPage() {
           <DialogHeader>
             <DialogTitle>Join {active?.businessName ?? "depot"}</DialogTitle>
             <DialogDescription>
-              Your name, address and citizenship number will be shared with this depot for verification.
+              Your name, address and citizenship number will be shared with this depot for
+              verification.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

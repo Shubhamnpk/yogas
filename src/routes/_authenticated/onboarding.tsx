@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { NEPAL_DISTRICTS } from "@/lib/gas";
+import { friendlyError, NEPAL_DISTRICTS } from "@/lib/gas";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
@@ -36,7 +36,6 @@ const consumerSchema = z.object({
   address: z.string().trim().min(4, "Enter your address").max(160),
   district: z.string().trim().min(2, "Choose your district"),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
-
 });
 
 const dealerSchema = z.object({
@@ -86,7 +85,6 @@ function Onboarding() {
     }
   }, [profile]);
 
-
   useEffect(() => {
     if (profileComplete) {
       void navigate({ to: role === "dealer" ? "/dealer" : "/dashboard", replace: true });
@@ -122,9 +120,12 @@ function Onboarding() {
       toast.success("Profile saved");
       await refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not save profile";
-      if (message.toLowerCase().includes("citizenship")) {
-        setCitizenshipError("That citizenship number is already in use. Please change it and try again.");
+      const raw = error instanceof Error ? error.message : "";
+      const message = friendlyError(error, "Could not save profile");
+      if (/citizenship/i.test(raw)) {
+        setCitizenshipError(
+          "That citizenship number is already in use. Please change it and try again.",
+        );
       }
       toast.error(message);
     } finally {
@@ -163,7 +164,7 @@ function Onboarding() {
       toast.success(dealer ? "Depot updated" : "Depot registered");
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not register depot");
+      toast.error(friendlyError(error, "Could not register depot"));
     } finally {
       setBusy(false);
     }

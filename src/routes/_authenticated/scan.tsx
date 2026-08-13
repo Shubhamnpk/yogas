@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { QrCode } from "lucide-react";
 import { toast } from "sonner";
 import QrScanner from "@/components/QrScanner";
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/scan")({
 function ScanPage() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
+  const handled = useRef(false);
 
   const go = (value: string) => {
     const clean = value.trim();
@@ -44,11 +45,13 @@ function ScanPage() {
 
       <QrScanner
         onResult={(text) => {
+          if (handled.current) return;
           const parsed = parseScanPayload(text);
           if (parsed.kind === "consumer") {
             toast.error("That's a consumer code. Scan the depot's code instead.");
             return;
           }
+          handled.current = true;
           go(parsed.value);
         }}
       />
