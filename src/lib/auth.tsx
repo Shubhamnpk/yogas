@@ -1,9 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 
-export type AppRole = "consumer" | "dealer";
+const SESSION_KEY = "YoGas_session_token";
+
+export type AppRole = "consumer" | "dealer" | "admin";
+
+export type AppUser = {
+  id: string;
+  accountId: Id<"accounts">;
+  email: string;
+};
 
 export type Profile = {
   id: string;
@@ -15,12 +24,14 @@ export type Profile = {
   collection_code: string | null;
   phone: string | null;
   email: string | null;
+  total_purchased_quantity: number;
+  last_collected_at: number | null;
+  cooldown_until: number | null;
 };
 
-
 export type Dealer = {
-  id: string;
-  owner_id: string | null;
+  id: Id<"dealers">;
+  owner_id: Id<"accounts">;
   business_name: string;
   license_no: string | null;
   district: string;
@@ -29,95 +40,120 @@ export type Dealer = {
   stock: number;
   code: string;
   is_active: boolean;
+  approval_status: "pending" | "approved" | "rejected";
+  requested_at: number;
+  reviewed_at: number | null;
 };
 
 type AuthValue = {
   loading: boolean;
-  user: User | null;
-  session: Session | null;
+  user: AppUser | null;
   profile: Profile | null;
   role: AppRole | null;
   dealer: Dealer | null;
   profileComplete: boolean;
+  sessionToken: string | null;
+  setSessionToken: (token: string) => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [dealer, setDealer] = useState<Dealer | null>(null);
-  const [loading, setLoading] = useState(true);
+function storedSessionToken() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(SESSION_KEY);
+}
 
-  const load = useCallback(async (uid: string | undefined) => {
-    if (!uid) {
-      setProfile(null);
-      setRole(null);
-      setDealer(null);
-      return;
-    }
-    const [{ data: p }, { data: roles }, { data: d }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", uid),
-      supabase.from("dealers").select("*").eq("owner_id", uid).maybeSingle(),
-    ]);
-    setProfile((p as Profile) ?? null);
-    setRole(((roles?.[0]?.role as AppRole | undefined) ?? null) as AppRole | null);
-    setDealer((d as Dealer) ?? null);
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [sessionToken, setSessionTokenState] = useState<string | null>(() => storedSessionToken());
+  const viewer = useQuery(api.app.viewer, { sessionToken: sessionToken ?? undefined });
 
   useEffect(() => {
-    let active = true;
+    if (viewer === null && sessionToken) {
+      window.localStorage.removeItem(SESSION_KEY);
+      setSessionTokenState(null);
+    }
+  }, [viewer, sessionToken]);
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      if (!active) return;
-      setSession(next);
-      void load(next?.user.id).then(() => active && setLoading(false));
-    });
+  const setSessionToken = useCallback((next: string) => {
+    window.localStorage.setItem(SESSION_KEY, next);
+    setSessionTokenState(next);
+  }, []);
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      void load(data.session?.user.id).then(() => active && setLoading(false));
-    });
-
-    return () => {
-      active = false;
-      sub.subscription.unsubscribe();
-    };
-  }, [load]);
-
-  const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    setSession(data.session);
-    await load(data.session?.user.id);
-  }, [load]);
+  const refresh = useCallback(async () => {}, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
-    setRole(null);
-    setDealer(null);
+    window.localStorage.removeItem(SESSION_KEY);
+    setSessionTokenState(null);
   }, []);
 
   const value = useMemo<AuthValue>(() => {
-    const user = session?.user ?? null;
+    const account = viewer?.account ?? null;
+    const userProfile = viewer?.user ?? null;
+    const d = viewer?.dealer ?? null;
+    const role = account?.role ?? null;
+    const profile: Profile | null = userProfile
+      ? {
+          id: userProfile._id,
+          username: userProfile.username ?? null,
+          full_name: userProfile.fullName ?? null,
+          citizenship_no: userProfile.citizenshipNo ?? null,
+          address: userProfile.address ?? null,
+          district: userProfile.district ?? null,
+          collection_code: userProfile.collectionCode ?? null,
+          phone: userProfile.phone ?? null,
+          email: account?.email ?? null,
+          total_purchased_quantity: userProfile.totalPurchasedQuantity ?? 0,
+          last_collected_at: userProfile.lastCollectedAt ?? null,
+          cooldown_until: userProfile.cooldownUntil ?? null,
+        }
+      : null;
+    const dealer: Dealer | null = d
+      ? {
+          id: d._id,
+          owner_id: d.ownerAccountId,
+          business_name: d.businessName,
+          license_no: d.licenseNo ?? null,
+          district: d.district,
+          address: d.address ?? null,
+          phone: d.phone ?? null,
+          stock: d.stock,
+          code: d.code,
+          is_active: d.isActive,
+          approval_status: d.approvalStatus,
+          requested_at: d.requestedAt,
+          reviewed_at: d.reviewedAt ?? null,
+        }
+      : null;
+    const user = account ? { id: account._id, email: account.email } : null;
+    const currentUser = account && sessionToken
+      ? { id: sessionToken, accountId: account._id, email: account.email }
+      : null;
     const profileComplete = Boolean(
-      role === "dealer"
-        ? dealer && profile?.full_name && profile?.username
-        : profile?.full_name &&
-          profile?.username &&
-          profile?.citizenship_no &&
-          profile?.address &&
-          profile?.district,
-
+      role === "admin"
+        ? true
+        : role === "dealer"
+          ? dealer && profile?.full_name && profile?.username
+          : profile?.full_name &&
+              profile?.username &&
+              profile?.citizenship_no &&
+              profile?.address &&
+              profile?.district,
     );
-    return { loading, user, session, profile, role, dealer, profileComplete, refresh, signOut };
-  }, [loading, session, profile, role, dealer, refresh, signOut]);
+    return {
+      loading: viewer === undefined,
+      user: currentUser,
+      profile,
+      role,
+      dealer,
+      profileComplete,
+      sessionToken,
+      setSessionToken,
+      refresh,
+      signOut,
+    };
+  }, [viewer, sessionToken, setSessionToken, refresh, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

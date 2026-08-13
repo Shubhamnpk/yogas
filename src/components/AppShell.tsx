@@ -1,89 +1,75 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useQuery } from "convex/react";
 import {
   Bell,
+  ClipboardList,
   Flame,
   LayoutGrid,
   LogOut,
-  QrCode,
+  ShieldCheck,
   Store,
   Boxes,
-  ScanLine,
   UserRound,
+  ScanLine,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "../../convex/_generated/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { QrFab } from "@/components/QrFab";
+import { QrFab, ScanFabTrigger } from "@/components/QrFab";
+import { Logo } from "@/components/Logo";
 
 type NavItem = { to: string; label: string; icon: typeof Flame };
 
-
 const CONSUMER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Home", icon: LayoutGrid },
+  { to: "/waitlist", label: "Waitlist", icon: ClipboardList },
   { to: "/dealers", label: "Depots", icon: Store },
-  { to: "/scan", label: "Scan", icon: QrCode },
   { to: "/notifications", label: "Alerts", icon: Bell },
 ];
 
 const DEALER_NAV: NavItem[] = [
-  { to: "/dealer", label: "Queue", icon: LayoutGrid },
-  { to: "/dealer/scan", label: "Verify", icon: ScanLine },
+  { to: "/dealer", label: "Home", icon: LayoutGrid },
+  { to: "/dealer/waitlist", label: "Waitlist", icon: ClipboardList },
   { to: "/dealer/stock", label: "Stock", icon: Boxes },
   { to: "/notifications", label: "Alerts", icon: Bell },
 ];
 
+const ADMIN_NAV: NavItem[] = [
+  { to: "/dashboard", label: "Home", icon: LayoutGrid },
+  { to: "/notifications", label: "Alerts", icon: Bell },
+];
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const { role, profile, dealer, signOut, user } = useAuth();
+  const { role, profile, dealer, signOut, user, sessionToken } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const nav = role === "dealer" ? DEALER_NAV : CONSUMER_NAV;
-  const [unread, setUnread] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    const count = async () => {
-      const { count: c } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("read", false);
-      if (active) setUnread(c ?? 0);
-    };
-    void count();
-    const channel = supabase
-      .channel("notif-count")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => void count(),
-      )
-      .subscribe();
-    return () => {
-      active = false;
-      void supabase.removeChannel(channel);
-    };
-  }, [user, pathname]);
+  const [scanOpen, setScanOpen] = useState(false);
+  const nav = role === "dealer" ? DEALER_NAV : role === "admin" ? ADMIN_NAV : CONSUMER_NAV;
+  const unread =
+    useQuery(api.notifications.unreadCount, sessionToken ? { sessionToken } : "skip") ?? 0;
 
   const handleSignOut = async () => {
     await signOut();
     void navigate({ to: "/auth", replace: true });
   };
 
-  const title = role === "dealer" ? (dealer?.business_name ?? "Depot") : (profile?.full_name ?? "Consumer");
+  const title =
+    role === "dealer"
+      ? (dealer?.business_name ?? "Depot")
+      : role === "admin"
+        ? "Administrator"
+        : (profile?.full_name ?? "Consumer");
+
+  const homeTo = role === "dealer" ? "/dealer" : "/dashboard";
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-          <Link to={role === "dealer" ? "/dealer" : "/dashboard"} className="flex items-center gap-2">
-            <span className="grid size-9 place-items-center rounded-xl bg-flame text-primary-foreground shadow-soft">
-              <Flame className="size-5" />
-            </span>
-            <span className="font-display text-lg font-semibold">GasQueue</span>
+          <Link to={homeTo} className="flex items-center gap-2">
+            <Logo />
           </Link>
 
           <nav className="ml-6 hidden items-center gap-1 md:flex">
@@ -125,15 +111,41 @@ export function AppShell({ children }: { children: ReactNode }) {
               <LogOut className="size-4" />
             </Button>
           </div>
-
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-4">
-          {nav.map((item) => {
+        <div className="mx-auto grid max-w-lg grid-cols-5 items-end">
+          {nav.slice(0, 2).map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.to;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
+                  active ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <Icon className="size-5" />
+                {item.label}
+                {item.to === "/notifications" && unread > 0 ? (
+                  <span className="absolute right-1/4 top-1.5 size-2 rounded-full bg-primary" />
+                ) : null}
+              </Link>
+            );
+          })}
+
+          {role !== "admin" ? (
+            <div className="-mt-6 flex justify-center">
+              <ScanFabTrigger onClick={() => setScanOpen(true)} />
+            </div>
+          ) : null}
+
+          {nav.slice(2).map((item) => {
             const Icon = item.icon;
             const active = pathname === item.to;
             return (
@@ -156,8 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      <QrFab />
+      {role !== "admin" ? <QrFab open={scanOpen} onOpenChange={setScanOpen} /> : null}
     </div>
-
   );
 }

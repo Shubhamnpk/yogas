@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useMutation } from "convex/react";
 import { Boxes, Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "../../../convex/_generated/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +15,9 @@ import { stockLabel } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/dealer/stock")({
   head: () => ({
     meta: [
-      { title: "Stock & depot — GasQueue" },
+      { title: "Stock & depot — YoGas" },
       { name: "description", content: "Update your cylinder stock and depot details." },
-      { property: "og:title", content: "Stock & depot — GasQueue" },
+      { property: "og:title", content: "Stock & depot — YoGas" },
       { property: "og:description", content: "Keep your stock accurate so the queue stays honest." },
     ],
   }),
@@ -24,7 +25,10 @@ export const Route = createFileRoute("/_authenticated/dealer/stock")({
 });
 
 function DealerStock() {
-  const { dealer, refresh } = useAuth();
+  const { dealer, user, sessionToken } = useAuth();
+  const updateDealerStock = useMutation(api.app.updateDealerStock);
+  const updateDealerDetails = useMutation(api.app.updateDealerDetails);
+  const toggleDealerActive = useMutation(api.app.toggleDealerActive);
   const [stock, setStock] = useState(0);
   const [busy, setBusy] = useState(false);
   const [details, setDetails] = useState({ business_name: "", address: "", phone: "" });
@@ -40,20 +44,18 @@ function DealerStock() {
     }
   }, [dealer]);
 
-  if (!dealer) return null;
+  if (!dealer || !user) return null;
   const s = stockLabel(stock);
 
   const saveStock = async () => {
     setBusy(true);
-    const { error } = await supabase
-      .from("dealers")
-      .update({ stock: Math.max(0, Math.floor(stock)) })
-      .eq("id", dealer.id);
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      await updateDealerStock({ sessionToken: sessionToken ?? undefined, stock: Math.max(0, Math.floor(stock)) });
       toast.success("Stock updated");
-      void refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update stock");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -63,28 +65,27 @@ function DealerStock() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase
-      .from("dealers")
-      .update({
-        business_name: details.business_name.trim().slice(0, 90),
-        address: details.address.trim().slice(0, 160) || null,
-        phone: details.phone.trim().slice(0, 20) || null,
-      })
-      .eq("id", dealer.id);
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      await updateDealerDetails({
+        sessionToken: sessionToken ?? undefined,
+        businessName: details.business_name.trim(),
+        address: details.address.trim() || undefined,
+        phone: details.phone.trim() || undefined,
+      });
       toast.success("Depot details saved");
-      void refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save depot details");
+    } finally {
+      setBusy(false);
     }
   };
 
   const toggleActive = async (value: boolean) => {
-    const { error } = await supabase.from("dealers").update({ is_active: value }).eq("id", dealer.id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      await toggleDealerActive({ sessionToken: sessionToken ?? undefined, isActive: value });
       toast.success(value ? "Depot is now visible" : "Depot hidden from consumers");
-      void refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update depot visibility");
     }
   };
 

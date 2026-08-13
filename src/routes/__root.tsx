@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { OptionalConvexProvider } from "@/integrations/convex/client";
 
 function NotFoundComponent() {
   return (
@@ -79,14 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "GasQueue — LPG cylinder waitlist for Nepal" },
+      { title: "YoGas — LPG cylinder waitlist for Nepal" },
       {
         name: "description",
         content:
           "Join your local LPG depot's virtual queue, track your position, and collect your cylinder with a QR code.",
       },
-      { name: "author", content: "GasQueue" },
-      { property: "og:title", content: "GasQueue — LPG cylinder waitlist for Nepal" },
+      { name: "author", content: "YoGas" },
+      { property: "og:title", content: "YoGas — LPG cylinder waitlist for Nepal" },
       {
         property: "og:description",
         content: "A fair, transparent virtual queue between LPG dealers and consumers.",
@@ -102,6 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
       },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
@@ -130,11 +132,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="top-center" richColors />
-      </AuthProvider>
+      <OptionalConvexProvider>
+        <AuthProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster position="top-center" richColors />
+        </AuthProvider>
+      </OptionalConvexProvider>
     </QueryClientProvider>
   );
 }

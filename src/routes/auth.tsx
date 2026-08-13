@@ -1,27 +1,39 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Flame, Loader2, Store, User } from "lucide-react";
+import { useMutation } from "convex/react";
+import { Loader2, ShieldCheck, Store, User } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { api } from "../../convex/_generated/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { Logo, LogoMark } from "@/components/Logo";
 import { DEMO_ACCOUNTS } from "@/lib/gas";
+
+function authErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("sign in") || message.includes("password") || message.includes("email")) {
+      return "Sign-in failed. Check your details and try again.";
+    }
+    return error.message;
+  }
+  return "Something went wrong";
+}
 
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — GasQueue" },
+      { title: "Sign in — YoGas" },
       {
         name: "description",
-        content: "Sign in or create a GasQueue account as a consumer or an LPG depot dealer.",
+        content: "Sign in or create a YoGas account as a consumer or an LPG depot dealer.",
       },
-      { property: "og:title", content: "Sign in — GasQueue" },
+      { property: "og:title", content: "Sign in — YoGas" },
       { property: "og:description", content: "Access your LPG waitlist or depot dashboard." },
     ],
   }),
@@ -30,12 +42,6 @@ export const Route = createFileRoute("/auth")({
 
 const signUpSchema = z.object({
   fullName: z.string().trim().min(2, "Enter your full name").max(80),
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username must be at least 3 characters")
-    .max(24)
-    .regex(/^[a-z0-9._]+$/i, "Letters, numbers, dot and underscore only"),
   email: z.string().trim().email("Enter a valid email").max(255),
   password: z.string().min(8, "Use at least 8 characters").max(72),
 });
@@ -43,14 +49,19 @@ const signUpSchema = z.object({
 function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [role, setRole] = useState<"consumer" | "dealer">("consumer");
-  const [form, setForm] = useState({ fullName: "", username: "", email: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "" });
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { user, role: myRole, loading } = useAuth();
+  const { user, role: myRole, loading, setSessionToken } = useAuth();
+  const signUp = useMutation(api.app.signUp);
+  const signIn = useMutation(api.app.signIn);
+  const ensureAdminAccount = useMutation(api.admin.ensureAdminAccount);
 
   useEffect(() => {
     if (!loading && user) {
-      void navigate({ to: myRole === "dealer" ? "/dealer" : "/dashboard", replace: true });
+      void navigate(
+        { to: myRole === "dealer" ? "/dealer" : "/dashboard", replace: true },
+      );
     }
   }, [user, myRole, loading, navigate]);
 
@@ -67,61 +78,44 @@ function AuthPage() {
           toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
           return;
         }
-        const { error } = await supabase.auth.signUp({
+        const sessionToken = await signUp({
           email: parsed.data.email,
           password: parsed.data.password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: {
-              full_name: parsed.data.fullName,
-              username: parsed.data.username.toLowerCase(),
-              role,
-            },
-          },
+          role,
+          fullName: parsed.data.fullName,
         });
-        if (error) throw error;
+        setSessionToken(sessionToken);
         toast.success("Account created. Let's finish your details.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const sessionToken = await signIn({
           email: form.email.trim(),
           password: form.password,
         });
-        if (error) throw error;
+        setSessionToken(sessionToken);
         toast.success("Welcome back");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(authErrorMessage(err));
     } finally {
       setBusy(false);
     }
   };
 
-  const handleGoogle = async () => {
+  const demoLogin = async (kind: "consumer" | "dealer" | "admin") => {
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setBusy(false);
-      toast.error("Google sign-in failed. Please try again.");
-      return;
-    }
-    if (result.redirected) return;
-  };
-
-  const demoLogin = async (kind: "consumer" | "dealer") => {
-    setBusy(true);
-    const creds = DEMO_ACCOUNTS[kind];
-    const { error } = await supabase.auth.signInWithPassword({
-      email: creds.email,
-      password: creds.password,
-    });
-    setBusy(false);
-    if (error) {
+    try {
+      if (kind === "admin") {
+        await ensureAdminAccount({});
+      }
+      const creds = DEMO_ACCOUNTS[kind];
+      const sessionToken = await signIn({ email: creds.email, password: creds.password });
+      setSessionToken(sessionToken);
+      toast.success(`Signed in as the demo ${kind}`);
+    } catch {
       toast.error("Demo account unavailable right now");
-      return;
+    } finally {
+      setBusy(false);
     }
-    toast.success(`Signed in as the demo ${kind}`);
   };
 
 
@@ -129,10 +123,8 @@ function AuthPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-flame p-10 text-primary-foreground lg:flex">
         <Link to="/" className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-primary-foreground/15">
-            <Flame className="size-5" />
-          </span>
-          <span className="font-display text-lg font-semibold">GasQueue</span>
+          <LogoMark />
+          <span className="font-display text-lg font-semibold">YoGas</span>
         </Link>
         <div>
           <h1 className="max-w-sm font-display text-4xl font-bold leading-tight">
@@ -150,10 +142,7 @@ function AuthPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <Link to="/" className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-flame text-primary-foreground">
-                <Flame className="size-5" />
-              </span>
-              <span className="font-display text-lg font-semibold">GasQueue</span>
+              <Logo />
             </Link>
           </div>
 
@@ -196,16 +185,6 @@ function AuthPage() {
                   <Label htmlFor="fullName">Full name</Label>
                   <Input id="fullName" value={form.fullName} onChange={set("fullName")} maxLength={80} />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={form.username}
-                    onChange={set("username")}
-                    placeholder="e.g. sita.kc"
-                    maxLength={24}
-                  />
-                </div>
               </>
             ) : null}
 
@@ -237,14 +216,6 @@ function AuthPage() {
             </Button>
           </form>
 
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button variant="outline" className="w-full" onClick={handleGoogle} disabled={busy}>
-            Continue with Google
-          </Button>
-
           <div className="mt-6 rounded-xl border border-dashed border-border bg-secondary/50 p-4">
             <p className="text-sm font-semibold">Try the demo</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -269,12 +240,22 @@ function AuthPage() {
               >
                 <Store className="size-4" /> Dealer
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                className="col-span-2"
+                onClick={() => void demoLogin("admin")}
+              >
+                <ShieldCheck className="size-4" /> Admin
+              </Button>
             </div>
           </div>
 
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? "New to GasQueue?" : "Already have an account?"}{" "}
+            {mode === "signin" ? "New to YoGas?" : "Already have an account?"}{" "}
             <button
               type="button"
               className="font-semibold text-primary hover:underline"

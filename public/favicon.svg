@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffedd5"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff7ed"/>
+      <stop offset="1" stop-color="#ffedd5"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#tile)"/>
+  <rect width="64" height="64" rx="16" fill="none" stroke="#ffffff" stroke-opacity="0.25"/>
+  <g transform="translate(8 8) scale(1.3333)">
+    <path
+      d="M24 3.5 C21.5 9.5 13.5 15.5 13.5 24 C13.5 29 16.5 33.5 20.5 35.5 C20.8 33.5 22 32.5 23.2 32.5 C22.4 34 23 35 24 35 C25 35 25.6 34 24.8 32.5 C26 32.5 27.2 33.5 27.5 35.5 C31.5 33.5 34.5 29 34.5 24 C34.5 15.5 26.5 9.5 24 3.5 Z"
+      fill="url(#flame)"
+    />
+    <path
+      d="M24 15.5 C22.5 19.5 17 22 17 27 C17 30.5 20 33 24 33 C28 33 31 30.5 31 27 C31 22 25.5 19.5 24 15.5 Z"
+      fill="url(#inner)"
+      opacity="0.95"
+    />
+  </g>
+</svg>

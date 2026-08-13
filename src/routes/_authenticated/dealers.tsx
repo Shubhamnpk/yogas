@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
 import { Loader2, MapPin, Phone, Search, Store } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "../../../convex/_generated/api";
+import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,99 +26,78 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CYLINDER_LABEL, CYLINDER_SIZE, NEPAL_DISTRICTS, stockLabel } from "@/lib/gas";
-import type { Dealer } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/dealers")({
   head: () => ({
     meta: [
-      { title: "Find a depot — GasQueue" },
+      { title: "Find a depot — YoGas" },
       {
         name: "description",
         content: "Search verified LPG depots by name or district and join their waitlist.",
       },
-      { property: "og:title", content: "Find a depot — GasQueue" },
+      { property: "og:title", content: "Find a depot — YoGas" },
       { property: "og:description", content: "Browse LPG depots and their live cylinder stock." },
     ],
   }),
   validateSearch: (search: Record<string, unknown>): { depot?: string } =>
-    typeof search['depot'] === "string" ? { depot: search['depot'] } : {},
+    typeof search.depot === "string" ? { depot: search.depot } : {},
   component: DealersPage,
 });
 
 const requestSchema = z.object({
-  quantity: z.number().int().min(1).max(3),
+  quantity: z.literal(1),
   note: z.string().trim().max(240).optional().or(z.literal("")),
 });
 
+type DealerRow = Doc<"dealers"> & { waiting?: number };
+
 function DealersPage() {
   const { depot } = Route.useSearch();
-  const { user, profile } = useAuth();
+  const { user, profile, sessionToken } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [district, setDistrict] = useState<string | null>(null);
-  const [list, setList] = useState<(Dealer & { waiting?: number })[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState<Dealer | null>(null);
+  const [active, setActive] = useState<DealerRow | null>(null);
   const [form, setForm] = useState({ quantity: "1", note: "" });
   const [busy, setBusy] = useState(false);
-  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const list = useQuery(
+    api.waitlist.listDealers,
+    district === null
+      ? "skip"
+      : {
+          district: district && district !== "all" ? district : undefined,
+          search: query.trim() || undefined,
+        },
+  );
+  const activeRequests = useQuery(
+    api.waitlist.activeForConsumer,
+    sessionToken ? { sessionToken } : "skip",
+  );
+  const scannedDealer = useQuery(api.waitlist.dealerByCode, depot ? { code: depot } : "skip");
+  const joinDepot = useMutation(api.waitlist.joinDepot);
 
-  // Default the filter to the consumer's own district.
   useEffect(() => {
     if (district === null) setDistrict(profile?.district ?? "all");
   }, [profile?.district, district]);
 
-  const load = useCallback(async () => {
-    if (district === null) return;
-    setLoading(true);
-    let q = supabase.from("dealers").select("*").eq("is_active", true);
-    if (district !== "all") q = q.eq("district", district);
-    if (query.trim()) q = q.ilike("business_name", `%${query.trim()}%`);
-    const { data } = await q.order("stock", { ascending: false }).limit(50);
-    const rows = ((data as Dealer[]) ?? []) as (Dealer & { waiting?: number })[];
-    const withCounts = await Promise.all(
-      rows.map(async (d) => {
-        const { data: c } = await supabase.rpc("dealer_waiting_count", { _dealer_id: d.id });
-        return { ...d, waiting: (c as number | null) ?? 0 };
-      }),
-    );
-    setList(withCounts);
-    setLoading(false);
-  }, [query, district]);
-
-  useEffect(() => {
-    const t = setTimeout(() => void load(), 250);
-    return () => clearTimeout(t);
-  }, [load]);
-
-  useEffect(() => {
-    if (!user) return;
-    void supabase
-      .from("waitlist_entries")
-      .select("id, status")
-      .eq("consumer_id", user.id)
-      .in("status", ["waiting", "allotted"])
-      .then(({ data }) => setHasActiveRequest((data ?? []).length > 0));
-  }, [user, active]);
-
   useEffect(() => {
     if (!depot) return;
-    void supabase
-      .from("dealers")
-      .select("*")
-      .eq("code", depot.toUpperCase())
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setActive(data as Dealer);
-        else toast.error("No depot found for that code");
-        void navigate({ to: "/dealers", search: {}, replace: true });
-      });
-  }, [depot, navigate]);
+    if (scannedDealer === undefined) return;
+    if (scannedDealer) setActive(scannedDealer as DealerRow);
+    else toast.error("No depot found for that code");
+    void navigate({ to: "/dealers", search: {}, replace: true });
+  }, [depot, scannedDealer, navigate]);
+
+  const activeDealerIds = useMemo(
+    () => new Set((activeRequests ?? []).map((request) => request.dealerId)),
+    [activeRequests],
+  );
+  const hasAllottedRequest = (activeRequests ?? []).some((request) => request.status === "allotted");
 
   const submit = async () => {
     if (!user || !active) return;
     const parsed = requestSchema.safeParse({
-      quantity: Number(form.quantity),
+      quantity: 1,
       note: form.note,
     });
     if (!parsed.success) {
@@ -124,26 +105,23 @@ function DealersPage() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("waitlist_entries").insert({
-      dealer_id: active.id,
-      consumer_id: user.id,
-      quantity: parsed.data.quantity,
-      cylinder_size: CYLINDER_SIZE,
-      note: parsed.data.note || null,
-    });
-    setBusy(false);
-    if (error) {
-      toast.error(
-        error.code === "23505"
-          ? "You already have an active request. Cancel it before joining another queue."
-          : error.message,
-      );
-      return;
+    try {
+      await joinDepot({
+        dealerId: active._id as Id<"dealers">,
+        sessionToken: sessionToken ?? undefined,
+        quantity: parsed.data.quantity,
+        cylinderSize: CYLINDER_SIZE,
+        note: parsed.data.note || undefined,
+      });
+      setActive(null);
+        setForm({ quantity: "1", note: "" });
+      toast.success("You've joined the waitlist");
+      void navigate({ to: "/dashboard" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not join the waitlist");
+    } finally {
+      setBusy(false);
     }
-    setActive(null);
-    setForm({ quantity: "1", note: "" });
-    toast.success("You've joined the waitlist");
-    void navigate({ to: "/dashboard" });
   };
 
   return (
@@ -151,9 +129,8 @@ function DealersPage() {
       <div>
         <h1 className="font-display text-3xl font-bold">Find a depot</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Showing depots in{" "}
-          {district && district !== "all" ? district : "every district"} — search by name to narrow
-          it down.
+          Showing depots in {district && district !== "all" ? district : "every district"} — search by
+          name to narrow it down.
         </p>
       </div>
 
@@ -183,14 +160,13 @@ function DealersPage() {
         </Select>
       </div>
 
-      {hasActiveRequest ? (
+      {hasAllottedRequest ? (
         <p className="rounded-xl border border-border bg-secondary/60 px-4 py-3 text-sm text-muted-foreground">
-          You already have an active request. Collect or cancel it before joining another depot's
-          queue.
+          You already have gas allotted. Collect or cancel it before requesting from another depot.
         </p>
       ) : null}
 
-      {loading ? (
+      {list === undefined ? (
         <div className="grid h-40 place-items-center">
           <Loader2 className="size-5 animate-spin text-primary" />
         </div>
@@ -209,12 +185,14 @@ function DealersPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {list.map((d) => {
             const s = stockLabel(d.stock);
+            const isQueuedHere = activeDealerIds.has(d._id);
+            const disabled = hasAllottedRequest || isQueuedHere;
             return (
-              <div key={d.id} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <div key={d._id} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="flex items-center gap-2 font-semibold">
-                      <Store className="size-4 text-primary" /> {d.business_name}
+                      <Store className="size-4 text-primary" /> {d.businessName}
                     </h2>
                     <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
                       <MapPin className="size-3.5" /> {d.address ? `${d.address}, ` : ""}
@@ -249,11 +227,15 @@ function DealersPage() {
 
                 <Button
                   className="mt-4 w-full"
-                  disabled={hasActiveRequest}
+                  disabled={disabled}
                   onClick={() => setActive(d)}
-                  variant={hasActiveRequest ? "outline" : "default"}
+                  variant={disabled ? "outline" : "default"}
                 >
-                  {hasActiveRequest ? "You're already in a queue" : "Request a cylinder"}
+                  {hasAllottedRequest
+                    ? "Collect allotted gas first"
+                    : isQueuedHere
+                      ? "Already queued here"
+                      : "Request a cylinder"}
                 </Button>
               </div>
             );
@@ -264,10 +246,9 @@ function DealersPage() {
       <Dialog open={Boolean(active)} onOpenChange={(o) => !o && setActive(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Join {active?.business_name}</DialogTitle>
+            <DialogTitle>Join {active?.businessName ?? "depot"}</DialogTitle>
             <DialogDescription>
-              Your name, address and citizenship number will be shared with this depot for
-              verification.
+              Your name, address and citizenship number will be shared with this depot for verification.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -277,18 +258,7 @@ function DealersPage() {
             </div>
             <div className="space-y-2">
               <Label>Quantity</Label>
-              <Select value={form.quantity} onValueChange={(v) => setForm({ ...form, quantity: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {["1", "2", "3"].map((q) => (
-                    <SelectItem key={q} value={q}>
-                      {q}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input value="1 cylinder" readOnly disabled />
             </div>
             <div className="space-y-2">
               <Label>Note for the dealer (optional)</Label>

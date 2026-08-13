@@ -1,10 +1,10 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { Copy, QrCode } from "lucide-react";
+import { ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { consumerQrValue, depotQrValue } from "@/lib/gas";
-import { Button } from "@/components/ui/button";
+import { parseScanPayload } from "@/lib/gas";
+import QrScanner from "@/components/QrScanner";
 import {
   Dialog,
   DialogContent,
@@ -13,69 +13,85 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/** Floating action button that shows the signed-in person's QR code. */
-export function QrFab() {
-  const { role, user, profile, dealer } = useAuth();
-  const [open, setOpen] = useState(false);
+type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
-  const isDealer = role === "dealer";
-  const value = isDealer
-    ? dealer
-      ? depotQrValue(dealer.code)
-      : null
-    : user
-      ? consumerQrValue(user.id)
-      : null;
-  const code = isDealer ? (dealer?.code ?? "") : (profile?.collection_code ?? "");
+export function QrFab({ open, onOpenChange }: Props) {
+  const { role } = useAuth();
+  const navigate = useNavigate();
+  const [paused, setPaused] = useState(false);
 
-  if (!value) return null;
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      toast.success("Code copied");
-    } catch {
-      toast.error("Could not copy — write it down instead");
+  const handleResult = (text: string) => {
+    const parsed = parseScanPayload(text);
+    if (role === "dealer") {
+      if (parsed.kind !== "consumer") {
+        toast.error("Scan a consumer code here.");
+        return;
+      }
+      setPaused(true);
+      onOpenChange(false);
+      void navigate({ to: "/dealer/scan", search: { code: parsed.value } });
+      return;
     }
+
+    if (parsed.kind !== "depot") {
+      toast.error("Scan a depot code here.");
+      return;
+    }
+    setPaused(true);
+    onOpenChange(false);
+    void navigate({ to: "/dealers", search: { depot: parsed.value } });
   };
 
+  const title = role === "dealer" ? "Scan a consumer code" : "Scan a depot code";
+  const description =
+    role === "dealer"
+      ? "Use the camera to open a consumer record in the verification screen."
+      : "Use the camera to jump straight into a depot's waitlist.";
+
   return (
-    <>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setPaused(false);
+      }}
+    >
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        aria-label={isDealer ? "Show depot QR code" : "Show my collection QR code"}
-        className="fixed bottom-24 right-4 z-50 grid size-14 place-items-center rounded-full bg-flame text-primary-foreground shadow-lift transition-transform hover:scale-105 active:scale-95 md:bottom-8 md:right-8"
+        onClick={() => onOpenChange(true)}
+        aria-label="Scan QR code"
+        className="fixed bottom-8 right-8 z-50 hidden size-14 place-items-center rounded-full bg-flame text-primary-foreground shadow-lift transition-transform hover:scale-105 active:scale-95 md:grid"
       >
-        <QrCode className="size-6" />
+        <ScanLine className="size-6" />
       </button>
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <QrScanner onResult={handleResult} paused={paused || !open} />
+          <p className="text-center text-xs text-muted-foreground">
+            Point the camera at the QR code and wait for it to lock on.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{isDealer ? "Your depot QR" : "Your collection QR"}</DialogTitle>
-            <DialogDescription>
-              {isDealer
-                ? "Consumers scan this to join your depot's waitlist."
-                : "Show this at the depot counter to be verified and collect your cylinder."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4">
-            <div className="rounded-2xl bg-white p-4">
-              <QRCodeSVG value={value} size={200} level="M" />
-            </div>
-            <div className="text-center">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {isDealer ? "Depot code" : "Collection code"}
-              </p>
-              <p className="font-display text-2xl font-bold tracking-widest">{code || "—"}</p>
-            </div>
-            <Button variant="outline" className="w-full" onClick={() => void copy()}>
-              <Copy className="size-4" /> Copy code
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+export function ScanFabTrigger({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Scan QR code"
+      className="grid size-14 place-items-center rounded-full bg-flame text-primary-foreground shadow-lift transition-transform hover:scale-105 active:scale-95"
+    >
+      <ScanLine className="size-6" />
+    </button>
   );
 }

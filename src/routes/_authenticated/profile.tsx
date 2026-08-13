@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useMutation } from "convex/react";
 import { Copy, Eye, EyeOff, Loader2, LogOut, Store } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "../../../convex/_generated/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,12 +23,12 @@ import { consumerQrValue, depotQrValue, maskCitizenship, NEPAL_DISTRICTS } from 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile — GasQueue" },
+      { title: "Your profile — YoGas" },
       {
         name: "description",
-        content: "Manage your GasQueue details, district and personal collection code.",
+        content: "Manage your YoGas details, district and personal collection code.",
       },
-      { property: "og:title", content: "Your profile — GasQueue" },
+      { property: "og:title", content: "Your profile — YoGas" },
       { property: "og:description", content: "Your details and collection QR code in one place." },
     ],
   }),
@@ -36,12 +37,6 @@ export const Route = createFileRoute("/_authenticated/profile")({
 
 const schema = z.object({
   full_name: z.string().trim().min(2, "Enter your full name").max(80),
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username must be at least 3 characters")
-    .max(24)
-    .regex(/^[a-z0-9._]+$/i, "Letters, numbers, dot and underscore only"),
   citizenship_no: z.string().trim().max(30).optional().or(z.literal("")),
   address: z.string().trim().max(160).optional().or(z.literal("")),
   district: z.string().trim().min(2, "Choose your district"),
@@ -49,14 +44,14 @@ const schema = z.object({
 });
 
 function ProfilePage() {
-  const { user, profile, role, dealer, signOut, refresh } = useAuth();
+  const { user, profile, role, dealer, signOut, refresh, sessionToken } = useAuth();
   const navigate = useNavigate();
+  const updateProfile = useMutation(api.app.updateProfile);
   const isDealer = role === "dealer";
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
-    username: "",
     citizenship_no: "",
     address: "",
     district: "",
@@ -67,7 +62,6 @@ function ProfilePage() {
     if (!profile) return;
     setForm({
       full_name: profile.full_name ?? "",
-      username: profile.username ?? "",
       citizenship_no: profile.citizenship_no ?? "",
       address: profile.address ?? "",
       district: profile.district ?? "",
@@ -88,24 +82,22 @@ function ProfilePage() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: parsed.data.full_name,
-        username: parsed.data.username.toLowerCase(),
-        citizenship_no: parsed.data.citizenship_no || null,
-        address: parsed.data.address || null,
+    try {
+      await updateProfile({
+        sessionToken: sessionToken ?? undefined,
+        fullName: parsed.data.full_name,
+        citizenshipNo: parsed.data.citizenship_no || undefined,
+        address: parsed.data.address || undefined,
         district: parsed.data.district,
-        phone: parsed.data.phone || null,
-      })
-      .eq("id", user.id);
-    setBusy(false);
-    if (error) {
-      toast.error(error.message.includes("duplicate") ? "That username is taken" : error.message);
-      return;
+        phone: parsed.data.phone || undefined,
+      });
+      toast.success("Profile updated");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update profile");
+    } finally {
+      setBusy(false);
     }
-    toast.success("Profile updated");
-    await refresh();
   };
 
   const code = isDealer ? (dealer?.code ?? "") : (profile?.collection_code ?? "");
@@ -114,7 +106,7 @@ function ProfilePage() {
       ? depotQrValue(dealer.code)
       : null
     : user
-      ? consumerQrValue(user.id)
+      ? consumerQrValue(user.accountId)
       : null;
 
   const copy = async () => {
@@ -157,11 +149,8 @@ function ProfilePage() {
           </div>
           <div className="space-y-2">
             <Label>Username</Label>
-            <Input
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              maxLength={24}
-            />
+            <Input value={profile?.username ?? ""} readOnly disabled />
+            <p className="text-xs text-muted-foreground">This is auto-generated for your account.</p>
           </div>
           {!isDealer ? (
             <div className="space-y-2">

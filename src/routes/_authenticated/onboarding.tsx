@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Flame, Loader2, Store, User } from "lucide-react";
+import { useMutation } from "convex/react";
+import { Loader2, Store, User } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "../../../convex/_generated/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,12 +27,6 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 
 const consumerSchema = z.object({
   full_name: z.string().trim().min(2, "Enter your full name").max(80),
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username must be at least 3 characters")
-    .max(24)
-    .regex(/^[a-z0-9._]+$/i, "Letters, numbers, dot and underscore only"),
   citizenship_no: z
     .string()
     .trim()
@@ -52,16 +48,19 @@ const dealerSchema = z.object({
 });
 
 function Onboarding() {
-  const { user, profile, role, dealer, profileComplete, refresh } = useAuth();
+  const { user, profile, role, dealer, profileComplete, refresh, sessionToken } = useAuth();
   const navigate = useNavigate();
+  const updateRole = useMutation(api.app.updateRole);
+  const updateProfile = useMutation(api.app.updateProfile);
+  const upsertDealer = useMutation(api.app.upsertDealer);
   const [pickedRole, setPickedRole] = useState<"consumer" | "dealer" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [citizenshipError, setCitizenshipError] = useState<string | null>(null);
 
   const activeRole = role ?? pickedRole;
 
   const [c, setC] = useState({
     full_name: "",
-    username: "",
     citizenship_no: "",
     address: "",
     district: "",
@@ -79,7 +78,6 @@ function Onboarding() {
     if (profile) {
       setC((prev) => ({
         full_name: prev.full_name || (profile.full_name ?? ""),
-        username: prev.username || (profile.username ?? ""),
         citizenship_no: prev.citizenship_no || (profile.citizenship_no ?? ""),
         address: prev.address || (profile.address ?? ""),
         district: prev.district || (profile.district ?? ""),
@@ -98,37 +96,40 @@ function Onboarding() {
   const saveRole = async (value: "consumer" | "dealer") => {
     if (!user) return;
     setPickedRole(value);
-    await supabase.from("user_roles").insert({ user_id: user.id, role: value });
+    await updateRole({ sessionToken: sessionToken ?? undefined, role: value });
     await refresh();
   };
 
   const submitConsumer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setCitizenshipError(null);
     const parsed = consumerSchema.safeParse(c);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email ?? null,
-      full_name: parsed.data.full_name,
-      citizenship_no: parsed.data.citizenship_no,
-      address: parsed.data.address,
-      district: parsed.data.district,
-      phone: parsed.data.phone || null,
-      username: parsed.data.username.toLowerCase(),
-    });
-
-    setBusy(false);
-    if (error) {
-      toast.error(error.message.includes("duplicate") ? "That username is taken" : error.message);
-      return;
+    try {
+      await updateProfile({
+        sessionToken: sessionToken ?? undefined,
+        fullName: parsed.data.full_name,
+        citizenshipNo: parsed.data.citizenship_no,
+        address: parsed.data.address,
+        district: parsed.data.district,
+        phone: parsed.data.phone || undefined,
+      });
+      toast.success("Profile saved");
+      await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save profile";
+      if (message.toLowerCase().includes("citizenship")) {
+        setCitizenshipError("That citizenship number is already in use. Please change it and try again.");
+      }
+      toast.error(message);
+    } finally {
+      setBusy(false);
     }
-    toast.success("Profile saved");
-    await refresh();
   };
 
   const submitDealer = async (e: React.FormEvent) => {
@@ -139,58 +140,45 @@ function Onboarding() {
       toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
       return;
     }
-    if (!c.full_name.trim() || !c.username.trim()) {
-      toast.error("Enter your name and a username");
+    if (!c.full_name.trim()) {
+      toast.error("Enter your name");
       return;
     }
     setBusy(true);
-    const { error: pErr } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email ?? null,
-      full_name: c.full_name.trim(),
-      username: c.username.trim().toLowerCase(),
-      district: parsed.data.district,
-      phone: parsed.data.phone || null,
-
-    });
-    if (pErr) {
+    try {
+      await updateProfile({
+        sessionToken: sessionToken ?? undefined,
+        fullName: c.full_name.trim(),
+        district: parsed.data.district,
+        phone: parsed.data.phone || undefined,
+      });
+      await upsertDealer({
+        sessionToken: sessionToken ?? undefined,
+        businessName: parsed.data.business_name,
+        licenseNo: parsed.data.license_no || undefined,
+        district: parsed.data.district,
+        address: parsed.data.address,
+        phone: parsed.data.phone || undefined,
+      });
+      toast.success(dealer ? "Depot updated" : "Depot registered");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not register depot");
+    } finally {
       setBusy(false);
-      toast.error(pErr.message.includes("duplicate") ? "That username is taken" : pErr.message);
-      return;
     }
-    const payload = {
-      owner_id: user.id,
-      business_name: parsed.data.business_name,
-      license_no: parsed.data.license_no || null,
-      district: parsed.data.district,
-      address: parsed.data.address,
-      phone: parsed.data.phone || null,
-    };
-    const { error } = dealer
-      ? await supabase.from("dealers").update(payload).eq("id", dealer.id)
-      : await supabase.from("dealers").insert(payload);
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Depot registered");
-    await refresh();
   };
 
   return (
     <div className="min-h-screen bg-secondary/40 px-4 py-10">
       <div className="mx-auto w-full max-w-lg">
         <div className="mb-8 flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-flame text-primary-foreground">
-            <Flame className="size-5" />
-          </span>
-          <span className="font-display text-lg font-semibold">GasQueue</span>
+          <Logo />
         </div>
 
         {!activeRole ? (
           <div className="rounded-2xl border border-border bg-card p-7 shadow-soft">
-            <h1 className="font-display text-2xl font-bold">How will you use GasQueue?</h1>
+            <h1 className="font-display text-2xl font-bold">How will you use YoGas?</h1>
             <p className="mt-1 text-sm text-muted-foreground">You can only pick this once.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {(
@@ -232,21 +220,23 @@ function Onboarding() {
                 maxLength={80}
               />
             </Field>
-            <Field label="Username">
-              <Input
-                value={c.username}
-                onChange={(e) => setC({ ...c, username: e.target.value })}
-                placeholder="sita.kc"
-                maxLength={24}
-              />
-            </Field>
             <Field label="Citizenship number">
               <Input
                 value={c.citizenship_no}
-                onChange={(e) => setC({ ...c, citizenship_no: e.target.value })}
+                onChange={(e) => {
+                  setC({ ...c, citizenship_no: e.target.value });
+                  if (citizenshipError) setCitizenshipError(null);
+                }}
                 placeholder="12-01-75-01234"
                 maxLength={30}
+                aria-invalid={Boolean(citizenshipError)}
+                aria-describedby={citizenshipError ? "citizenship-error" : undefined}
               />
+              {citizenshipError ? (
+                <p id="citizenship-error" className="text-sm text-destructive">
+                  {citizenshipError}
+                </p>
+              ) : null}
             </Field>
             <Field label="Address">
               <Textarea
@@ -298,14 +288,6 @@ function Onboarding() {
                 value={c.full_name}
                 onChange={(e) => setC({ ...c, full_name: e.target.value })}
                 maxLength={80}
-              />
-            </Field>
-            <Field label="Username">
-              <Input
-                value={c.username}
-                onChange={(e) => setC({ ...c, username: e.target.value })}
-                placeholder="everest.depot"
-                maxLength={24}
               />
             </Field>
             <Field label="Depot / business name">

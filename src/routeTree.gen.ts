@@ -18,9 +18,11 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
+import { Route as AuthenticatedWaitlistRouteImport } from './routes/_authenticated/waitlist'
 import { Route as AuthenticatedDealerIndexRouteImport } from './routes/_authenticated/dealer.index'
 import { Route as AuthenticatedDealerScanRouteImport } from './routes/_authenticated/dealer.scan'
 import { Route as AuthenticatedDealerStockRouteImport } from './routes/_authenticated/dealer.stock'
+import { Route as AuthenticatedDealerWaitlistRouteImport } from './routes/_authenticated/dealer.waitlist'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -67,6 +69,11 @@ const AuthenticatedScanRoute = AuthenticatedScanRouteImport.update({
   path: '/scan',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedWaitlistRoute = AuthenticatedWaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDealerIndexRoute =
   AuthenticatedDealerIndexRouteImport.update({
     id: '/dealer/',
@@ -84,6 +91,12 @@ const AuthenticatedDealerStockRoute =
     path: '/dealer/stock',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDealerWaitlistRoute =
+  AuthenticatedDealerWaitlistRouteImport.update({
+    id: '/dealer/waitlist',
+    path: '/dealer/waitlist',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -94,8 +107,10 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/scan': typeof AuthenticatedScanRoute
+  '/waitlist': typeof AuthenticatedWaitlistRoute
   '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
+  '/dealer/waitlist': typeof AuthenticatedDealerWaitlistRoute
   '/dealer/': typeof AuthenticatedDealerIndexRoute
 }
 export interface FileRoutesByTo {
@@ -107,8 +122,10 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/scan': typeof AuthenticatedScanRoute
+  '/waitlist': typeof AuthenticatedWaitlistRoute
   '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
+  '/dealer/waitlist': typeof AuthenticatedDealerWaitlistRoute
   '/dealer': typeof AuthenticatedDealerIndexRoute
 }
 export interface FileRoutesById {
@@ -122,8 +139,10 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
+  '/_authenticated/waitlist': typeof AuthenticatedWaitlistRoute
   '/_authenticated/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/_authenticated/dealer/stock': typeof AuthenticatedDealerStockRoute
+  '/_authenticated/dealer/waitlist': typeof AuthenticatedDealerWaitlistRoute
   '/_authenticated/dealer/': typeof AuthenticatedDealerIndexRoute
 }
 export interface FileRouteTypes {
@@ -137,8 +156,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/profile'
     | '/scan'
+    | '/waitlist'
     | '/dealer/scan'
     | '/dealer/stock'
+    | '/dealer/waitlist'
     | '/dealer/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -150,8 +171,10 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/profile'
     | '/scan'
+    | '/waitlist'
     | '/dealer/scan'
     | '/dealer/stock'
+    | '/dealer/waitlist'
     | '/dealer'
   id:
     | '__root__'
@@ -164,8 +187,10 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/profile'
     | '/_authenticated/scan'
+    | '/_authenticated/waitlist'
     | '/_authenticated/dealer/scan'
     | '/_authenticated/dealer/stock'
+    | '/_authenticated/dealer/waitlist'
     | '/_authenticated/dealer/'
   fileRoutesById: FileRoutesById
 }
@@ -240,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedScanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/waitlist': {
+      id: '/_authenticated/waitlist'
+      path: '/waitlist'
+      fullPath: '/waitlist'
+      preLoaderRoute: typeof AuthenticatedWaitlistRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dealer/': {
       id: '/_authenticated/dealer/'
       path: '/dealer'
@@ -261,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDealerStockRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dealer/waitlist': {
+      id: '/_authenticated/dealer/waitlist'
+      path: '/dealer/waitlist'
+      fullPath: '/dealer/waitlist'
+      preLoaderRoute: typeof AuthenticatedDealerWaitlistRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -271,8 +310,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
+  AuthenticatedWaitlistRoute: typeof AuthenticatedWaitlistRoute
   AuthenticatedDealerScanRoute: typeof AuthenticatedDealerScanRoute
   AuthenticatedDealerStockRoute: typeof AuthenticatedDealerStockRoute
+  AuthenticatedDealerWaitlistRoute: typeof AuthenticatedDealerWaitlistRoute
   AuthenticatedDealerIndexRoute: typeof AuthenticatedDealerIndexRoute
 }
 
@@ -283,8 +324,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
+  AuthenticatedWaitlistRoute: AuthenticatedWaitlistRoute,
   AuthenticatedDealerScanRoute: AuthenticatedDealerScanRoute,
   AuthenticatedDealerStockRoute: AuthenticatedDealerStockRoute,
+  AuthenticatedDealerWaitlistRoute: AuthenticatedDealerWaitlistRoute,
   AuthenticatedDealerIndexRoute: AuthenticatedDealerIndexRoute,
 }
 

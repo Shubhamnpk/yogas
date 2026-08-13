@@ -18,8 +18,9 @@ export const CYLINDER_SIZE = "14.2kg";
 export const CYLINDER_LABEL = "14.2 kg cylinder";
 
 export const DEMO_ACCOUNTS = {
-  consumer: { email: "demo.consumer@gasqueue.app", password: "demo1234" },
-  dealer: { email: "demo.dealer@gasqueue.app", password: "demo1234" },
+  consumer: { email: "demo.consumer@YoGas.app", password: "demo1234" },
+  dealer: { email: "demo.dealer@YoGas.app", password: "demo1234" },
+  admin: { email: "admin@YoGas.app", password: "admin1234" },
 } as const;
 
 
@@ -61,8 +62,8 @@ export function stockLabel(stock: number) {
   return { label: "In stock", tone: "success" as const };
 }
 
-export function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
+export function timeAgo(value: string | number | Date) {
+  const diff = Date.now() - new Date(value).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -70,11 +71,11 @@ export function timeAgo(iso: string) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(value).toLocaleDateString();
 }
 
-export function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
+export function formatDateTime(value: string | number | Date) {
+  return new Date(value).toLocaleString(undefined, {
     day: "numeric",
     month: "short",
     hour: "2-digit",

@@ -1,4 +1,4 @@
-# GasQueue — production pass
+# YoGas — production pass
 
 ## 1. One cylinder per person, per round
 
@@ -38,8 +38,8 @@ A persistent floating action button on every signed-in screen:
 
 - Delete the six placeholder depots and any orphaned waitlist entries/notifications tied to them.
 - Create exactly two working demo logins:
-  - **Consumer** — `demo.consumer@gasqueue.app` / `demo1234`, profile fully completed (name, citizenship no., address, district Kathmandu).
-  - **Dealer** — `demo.dealer@gasqueue.app` / `demo1234`, owning one real depot: "Kathmandu Gas Depot", Kathmandu, stock 25.
+  - **Consumer** — `demo.consumer@YoGas.app` / `demo1234`, profile fully completed (name, citizenship no., address, district Kathmandu).
+  - **Dealer** — `demo.dealer@YoGas.app` / `demo1234`, owning one real depot: "Kathmandu Gas Depot", Kathmandu, stock 25.
 - Both accounts are created with confirmed emails so they log in immediately.
 - The landing page and auth page show these credentials in a small "Try the demo" card, one tap to fill the form.
 

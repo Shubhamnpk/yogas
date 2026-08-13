@@ -1,53 +1,40 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowRight, Bell, Flame, QrCode, ShieldCheck, Store, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "convex/react";
+import { ArrowRight, Bell, QrCode, ShieldCheck, Store, Users } from "lucide-react";
+import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { stockLabel } from "@/lib/gas";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "GasQueue — Fair LPG cylinder queues for Nepal" },
+      { title: "YoGas — Fair LPG cylinder queues for Nepal" },
       {
         name: "description",
         content:
           "Join a verified LPG depot's virtual waitlist with your citizenship details, track your queue position live, and collect your cylinder with a QR code.",
       },
-      { property: "og:title", content: "GasQueue — Fair LPG cylinder queues for Nepal" },
+      { property: "og:title", content: "YoGas — Fair LPG cylinder queues for Nepal" },
       {
         property: "og:description",
-        content:
-          "A transparent virtual queue between LPG dealers and consumers — no crowds, no favouritism.",
+        content: "A transparent virtual queue between LPG dealers and consumers — no crowds, no favouritism.",
       },
     ],
   }),
   component: Landing,
 });
 
-type PublicDealer = { id: string; business_name: string; district: string; stock: number; code: string };
-
 function Landing() {
-  const [dealers, setDealers] = useState<PublicDealer[]>([]);
-
-  useEffect(() => {
-    void supabase
-      .from("dealers")
-      .select("id, business_name, district, stock, code")
-      .eq("is_active", true)
-      .order("stock", { ascending: false })
-      .limit(6)
-      .then(({ data }) => setDealers((data as PublicDealer[]) ?? []));
-  }, []);
+  const dealers = useQuery(api.waitlist.listDealers, { limit: 6 });
 
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-flame text-primary-foreground shadow-soft">
-            <Flame className="size-5" />
-          </span>
-          <span className="font-display text-lg font-semibold">GasQueue</span>
+          <Link to="/" className="flex items-center gap-2">
+            <Logo />
+          </Link>
         </div>
         <Button asChild size="sm">
           <Link to="/auth">Sign in</Link>
@@ -66,7 +53,7 @@ function Landing() {
             <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground md:text-lg">
               Join your depot's virtual waitlist with your name and citizenship number, watch your
               position update live, and collect your cylinder by showing one QR code. Dealers verify
-              and allot in seconds — so hoarding and favouritism have nowhere to hide.
+              and allot in seconds so hoarding and favouritism have nowhere to hide.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
@@ -83,18 +70,20 @@ function Landing() {
           <div className="rounded-3xl border border-border bg-card p-6 shadow-lift">
             <p className="text-sm font-semibold text-muted-foreground">Live depot stock</p>
             <ul className="mt-4 space-y-3">
-              {dealers.length === 0 ? (
-                <li className="text-sm text-muted-foreground">Loading depots…</li>
+              {dealers === undefined ? (
+                <li className="text-sm text-muted-foreground">Loading depots...</li>
+              ) : dealers.length === 0 ? (
+                <li className="text-sm text-muted-foreground">No depots are active yet.</li>
               ) : (
                 dealers.map((d) => {
                   const s = stockLabel(d.stock);
                   return (
                     <li
-                      key={d.id}
+                      key={d._id}
                       className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3"
                     >
                       <div>
-                        <p className="text-sm font-semibold">{d.business_name}</p>
+                        <p className="text-sm font-semibold">{d.businessName}</p>
                         <p className="text-xs text-muted-foreground">{d.district}</p>
                       </div>
                       <div className="text-right">
@@ -183,7 +172,7 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        GasQueue · Fair LPG distribution for Nepali households
+        YoGas · Fair LPG distribution for Nepali households
       </footer>
     </div>
   );

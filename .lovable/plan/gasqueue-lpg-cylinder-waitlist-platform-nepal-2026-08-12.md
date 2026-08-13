@@ -1,4 +1,4 @@
-# GasQueue — LPG Cylinder Waitlist Platform (Nepal)
+# YoGas — LPG Cylinder Waitlist Platform (Nepal)
 
 A production-ready platform connecting LPG dealers and consumers: consumers join a dealer's virtual waitlist, dealers verify and allot cylinders by scanning the consumer's QR code.
 
