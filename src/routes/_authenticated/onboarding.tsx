@@ -10,14 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { friendlyError, NEPAL_DISTRICTS } from "@/lib/gas";
 import { cn } from "@/lib/utils";
 
@@ -240,26 +233,20 @@ function Onboarding() {
               ) : null}
             </Field>
             <Field label="Address">
-              <Textarea
+              <Input
                 value={c.address}
                 onChange={(e) => setC({ ...c, address: e.target.value })}
-                rows={2}
                 maxLength={160}
+                placeholder="e.g. Ward 4, Jyatha, Thamel"
               />
             </Field>
             <Field label="District">
-              <Select value={c.district} onValueChange={(v) => setC({ ...c, district: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NEPAL_DISTRICTS.map((x) => (
-                    <SelectItem key={x} value={x}>
-                      {x}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={c.district}
+                onValueChange={(v) => setC({ ...c, district: v })}
+                options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
+                placeholder="Select district"
+              />
             </Field>
 
             <Field label="Phone (optional)">
@@ -306,25 +293,19 @@ function Onboarding() {
               />
             </Field>
             <Field label="District">
-              <Select value={d.district} onValueChange={(v) => setD({ ...d, district: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NEPAL_DISTRICTS.map((x) => (
-                    <SelectItem key={x} value={x}>
-                      {x}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={d.district}
+                onValueChange={(v) => setD({ ...d, district: v })}
+                options={NEPAL_DISTRICTS.map((x) => ({ value: x, label: x }))}
+                placeholder="Select district"
+              />
             </Field>
             <Field label="Depot address">
-              <Textarea
+              <Input
                 value={d.address}
                 onChange={(e) => setD({ ...d, address: e.target.value })}
-                rows={2}
                 maxLength={160}
+                placeholder="e.g. Chabahil Chowk, Kathmandu"
               />
             </Field>
             <Field label="Contact phone (optional)">

@@ -20,9 +20,9 @@ import { timeAgo } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
     meta: [
-      { title: "Alerts — YoGas" },
+      { title: "Alerts - YoGas" },
       { name: "description", content: "Updates about your LPG cylinder allotments and queue." },
-      { property: "og:title", content: "Alerts — YoGas" },
+      { property: "og:title", content: "Alerts - YoGas" },
       { property: "og:description", content: "Every update on your cylinder request." },
     ],
   }),

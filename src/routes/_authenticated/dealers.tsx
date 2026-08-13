@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Loader2, MapPin, Phone, Search, Store } from "lucide-react";
+import { Loader2, MapPin, Search, Store } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
@@ -11,13 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { NativeModal, NativeModalHeader } from "@/components/NativeModal";
 import {
   Select,
   SelectContent,
@@ -37,12 +31,12 @@ import {
 export const Route = createFileRoute("/_authenticated/dealers")({
   head: () => ({
     meta: [
-      { title: "Find a depot — YoGas" },
+      { title: "Find a depot - YoGas" },
       {
         name: "description",
         content: "Search verified LPG depots by name or district and join their waitlist.",
       },
-      { property: "og:title", content: "Find a depot — YoGas" },
+      { property: "og:title", content: "Find a depot - YoGas" },
       { property: "og:description", content: "Browse LPG depots and their live cylinder stock." },
     ],
   }),
@@ -132,7 +126,7 @@ function DealersPage() {
         toast.error(
           profile?.cooldown_until && profile.cooldown_until > Date.now()
             ? `You're cooling down after your last collection. You can request gas again after ${formatDateTime(profile.cooldown_until)}.`
-            : "You're cooling down after your last collection — try again later.",
+            : "You're cooling down after your last collection - try again later.",
         );
       } else {
         toast.error(friendlyError(error, "Could not join the waitlist"));
@@ -147,7 +141,7 @@ function DealersPage() {
       <div>
         <h1 className="font-display text-3xl font-bold">Find a depot</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Showing depots in {district && district !== "all" ? district : "every district"} — search
+          Showing depots in {district && district !== "all" ? district : "every district"} - search
           by name to narrow it down.
         </p>
       </div>
@@ -217,9 +211,13 @@ function DealersPage() {
                       {d.district}
                     </p>
                     {d.phone ? (
-                      <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                        <Phone className="size-3.5" /> {d.phone}
-                      </p>
+                      <a
+                        href={`tel:${d.phone}`}
+                        className="mt-1 flex items-center gap-1 text-sm text-primary underline-offset-2 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {d.phone}
+                      </a>
                     ) : null}
                   </div>
                   <span
@@ -235,12 +233,14 @@ function DealersPage() {
                   </span>
                 </div>
 
-                <div className="mt-5 flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3 text-sm">
-                  <span>
-                    <span className="font-display text-lg font-bold">{d.stock}</span>{" "}
-                    <span className="text-muted-foreground">cylinders</span>
+                <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-4 py-3 text-sm">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-display text-lg font-bold">{d.stock}</span>
+                    <span className="text-muted-foreground">
+                      {d.stock === 1 ? "cylinder" : "cylinders"}
+                    </span>
                   </span>
-                  <span className="text-muted-foreground">{d.waiting ?? 0} waiting</span>
+                  <span className="ml-auto text-muted-foreground">{d.waiting ?? 0} waiting</span>
                 </div>
 
                 <Button
@@ -261,40 +261,36 @@ function DealersPage() {
         </div>
       )}
 
-      <Dialog open={Boolean(active)} onOpenChange={(o) => !o && setActive(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Join {active?.businessName ?? "depot"}</DialogTitle>
-            <DialogDescription>
-              Your name, address and citizenship number will be shared with this depot for
-              verification.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-xl bg-secondary/60 px-4 py-3 text-sm">
-              <span className="font-medium">Cylinder:</span> {CYLINDER_LABEL} (the only size
-              distributed right now)
-            </div>
-            <div className="space-y-2">
-              <Label>Quantity</Label>
-              <Input value="1 cylinder" readOnly disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Note for the dealer (optional)</Label>
-              <Textarea
-                value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-                rows={3}
-                maxLength={240}
-                placeholder="e.g. Elderly household, need it urgently"
-              />
-            </div>
-            <Button className="w-full" onClick={() => void submit()} disabled={busy}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : null} Join waitlist
-            </Button>
+      <NativeModal open={Boolean(active)} onOpenChange={(o) => !o && setActive(null)}>
+        <NativeModalHeader
+          title={`Join ${active?.businessName ?? "depot"}`}
+          description="Your name, address and citizenship number will be shared with this depot for verification."
+          onClose={() => setActive(null)}
+        />
+        <div className="space-y-4 px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="rounded-xl bg-secondary/60 px-4 py-3 text-sm">
+            <span className="font-medium">Cylinder:</span> {CYLINDER_LABEL} (the only size
+            distributed right now)
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="space-y-2">
+            <Label>Quantity</Label>
+            <Input value="1 cylinder" readOnly disabled />
+          </div>
+          <div className="space-y-2">
+            <Label>Note for the dealer (optional)</Label>
+            <Textarea
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              rows={3}
+              maxLength={240}
+              placeholder="e.g. Elderly household, need it urgently"
+            />
+          </div>
+          <Button className="w-full" onClick={() => void submit()} disabled={busy}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : null} Join waitlist
+          </Button>
+        </div>
+      </NativeModal>
     </div>
   );
 }

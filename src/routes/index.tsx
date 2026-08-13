@@ -9,16 +9,16 @@ import { Logo } from "@/components/Logo";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "YoGas — Fair LPG cylinder queues for Nepal" },
+      { title: "YoGas - Fair LPG cylinder queues for Nepal" },
       {
         name: "description",
         content:
           "Join a verified LPG depot's virtual waitlist with your citizenship details, track your queue position live, and collect your cylinder with a QR code.",
       },
-      { property: "og:title", content: "YoGas — Fair LPG cylinder queues for Nepal" },
+      { property: "og:title", content: "YoGas - Fair LPG cylinder queues for Nepal" },
       {
         property: "og:description",
-        content: "A transparent virtual queue between LPG dealers and consumers — no crowds, no favouritism.",
+        content: "A transparent virtual queue between LPG dealers and consumers - no crowds, no favouritism.",
       },
     ],
   }),
@@ -115,7 +115,7 @@ function Landing() {
             {
               icon: Users,
               title: "Join with your identity",
-              body: "Name, citizenship number and address — one person, one place in the line.",
+              body: "Name, citizenship number and address - one person, one place in the line.",
             },
             {
               icon: QrCode,
@@ -159,14 +159,14 @@ function Landing() {
             <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li>1. Register your depot with its licence number.</li>
               <li>2. Update your cylinder stock as trucks arrive.</li>
-              <li>3. Allot cylinders in queue order — stock updates itself.</li>
+              <li>3. Allot cylinders in queue order - stock updates itself.</li>
               <li>4. Scan a consumer's QR to verify and hand over.</li>
             </ol>
           </div>
         </div>
         <div className="mt-10 text-center">
           <Button asChild size="lg">
-            <Link to="/auth">Get started — it's free</Link>
+            <Link to="/auth">Get started - it's free</Link>
           </Button>
         </div>
       </section>

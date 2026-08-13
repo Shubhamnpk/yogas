@@ -90,6 +90,7 @@ export default defineSchema({
     quantity: v.number(),
     note: v.optional(v.string()),
     status: entryStatus,
+    cancelledReason: v.optional(v.string()),
     createdAt: v.number(),
     allottedAt: v.optional(v.number()),
     collectedAt: v.optional(v.number()),

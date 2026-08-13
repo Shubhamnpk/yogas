@@ -28,12 +28,12 @@ function authErrorMessage(error: unknown) {
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — YoGas" },
+      { title: "Sign in - YoGas" },
       {
         name: "description",
         content: "Sign in or create a YoGas account as a consumer or an LPG depot dealer.",
       },
-      { property: "og:title", content: "Sign in — YoGas" },
+      { property: "og:title", content: "Sign in - YoGas" },
       { property: "og:description", content: "Access your LPG waitlist or depot dashboard." },
     ],
   }),
@@ -131,7 +131,7 @@ function AuthPage() {
             One fair line for every household.
           </h1>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-primary-foreground/85">
-            Virtual LPG waitlists that dealers can actually manage — verified consumers, honest
+            Virtual LPG waitlists that dealers can actually manage - verified consumers, honest
             queue order, and QR-based handover.
           </p>
         </div>

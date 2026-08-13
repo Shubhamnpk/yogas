@@ -11,9 +11,9 @@ import { parseScanPayload } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/scan")({
   head: () => ({
     meta: [
-      { title: "Scan a depot — YoGas" },
+      { title: "Scan a depot - YoGas" },
       { name: "description", content: "Scan a depot QR code to join its LPG waitlist instantly." },
-      { property: "og:title", content: "Scan a depot — YoGas" },
+      { property: "og:title", content: "Scan a depot - YoGas" },
       { property: "og:description", content: "Point your camera at the depot's code to join." },
     ],
   }),

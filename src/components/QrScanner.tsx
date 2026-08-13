@@ -157,7 +157,7 @@ export default function QrScanner({ onResult, paused }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-2xl bg-muted sm:max-w-md">
+      <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-2xl bg-muted">
         <div
           id={containerId.current}
           className="absolute inset-0 flex items-center justify-center"

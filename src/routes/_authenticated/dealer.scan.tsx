@@ -1,7 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Check, Loader2, PackageCheck, ScanLine, UserPlus, UserX } from "lucide-react";
+import {
+  Check,
+  Keyboard,
+  Loader2,
+  MapPin,
+  PackageCheck,
+  Phone,
+  ScanLine,
+  ShoppingBag,
+  UserPlus,
+  UserX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -90,6 +101,7 @@ function DealerScan() {
   const [busy, setBusy] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const [manual, setManual] = useState("");
+  const [mode, setMode] = useState<"idle" | "scan" | "enter">("idle");
   const [targetAccountId, setTargetAccountId] = useState<string | null>(null);
 
   const resolvedManualAccount = useQuery(
@@ -173,7 +185,7 @@ function DealerScan() {
       }
       toast.success(
         fn === "allot"
-          ? "Cylinder allotted — ask the customer to confirm on their device"
+          ? "Cylinder allotted - ask the customer to confirm on their device"
           : "Handover complete",
       );
       if (fn === "collect") setTargetAccountId(null);
@@ -206,14 +218,14 @@ function DealerScan() {
               consumerAccountId: targetAccountId as Id<"accounts">,
             },
       );
-      toast.success("Added to your waitlist — they're now in the queue");
+      toast.success("Added to your waitlist - they're now in the queue");
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       if (/cooldown/i.test(raw)) {
         const until = overview?.consumer?.cooldownUntil ?? 0;
         toast.error(
           until > Date.now()
-            ? `This customer is still cooling down — they can rejoin after ${formatDateTime(until)}.`
+            ? `This customer is still cooling down - they can rejoin after ${formatDateTime(until)}.`
             : "This customer is still in their cooldown period.",
         );
       } else {
@@ -235,6 +247,7 @@ function DealerScan() {
     setNotFound(false);
     setTargetAccountId(null);
     setManual("");
+    setMode("idle");
   };
 
   return (
@@ -252,7 +265,7 @@ function DealerScan() {
       {targetAccountId ? (
         <div className="flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/5 p-3">
           <p className="text-sm font-medium">
-            Scan complete — review the result below, then scan the next customer.
+            Scan complete - review the result below, then scan the next customer.
           </p>
           <Button variant="outline" size="sm" onClick={resetScan}>
             <ScanLine className="size-4" /> Scan again
@@ -261,13 +274,47 @@ function DealerScan() {
       ) : null}
 
       {!targetAccountId ? (
-        <>
-          <QrScanner onResult={onResult} />
-
+        mode === "idle" ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setMode("scan")}
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-8 text-center shadow-soft transition-colors hover:border-primary/40 hover:bg-primary/5"
+            >
+              <span className="grid size-14 place-items-center rounded-2xl bg-accent text-accent-foreground transition-transform group-hover:scale-105">
+                <ScanLine className="size-7" />
+              </span>
+              <span className="font-display text-lg font-bold">Scan QR code</span>
+              <span className="text-sm text-muted-foreground">
+                Use the camera to scan the consumer's code instantly.
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("enter")}
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-8 text-center shadow-soft transition-colors hover:border-primary/40 hover:bg-primary/5"
+            >
+              <span className="grid size-14 place-items-center rounded-2xl bg-accent text-accent-foreground transition-transform group-hover:scale-105">
+                <Keyboard className="size-7" />
+              </span>
+              <span className="font-display text-lg font-bold">Enter code</span>
+              <span className="text-sm text-muted-foreground">
+                Type the collection code printed on the consumer's profile.
+              </span>
+            </button>
+          </div>
+        ) : mode === "scan" ? (
+          <>
+            <QrScanner onResult={onResult} />
+            <Button variant="outline" className="w-full" onClick={() => setMode("idle")}>
+              Stop scanning
+            </Button>
+          </>
+        ) : (
           <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-            <p className="text-sm font-medium">Camera not working?</p>
+            <p className="text-sm font-medium">Enter collection code</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Type the collection code printed on the consumer's profile.
+              Type the code printed on the consumer's profile or next to their QR code.
             </p>
             <div className="mt-3 flex gap-2">
               <Input
@@ -276,13 +323,17 @@ function DealerScan() {
                 placeholder="e.g. 7KQ4M2"
                 maxLength={12}
                 className="tracking-widest"
+                autoFocus
               />
               <Button variant="outline" onClick={() => void manualLookup()} disabled={busy}>
                 {busy ? <Loader2 className="size-4 animate-spin" /> : null} Look up
               </Button>
             </div>
+            <Button variant="ghost" className="mt-2" onClick={() => setMode("idle")}>
+              Back
+            </Button>
           </div>
-        </>
+        )
       ) : null}
 
       {notFound ? (
@@ -297,144 +348,164 @@ function DealerScan() {
       ) : null}
 
       {overview ? (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="font-display text-lg font-bold">{consumer?.fullName ?? "Consumer"}</p>
-              <p className="text-xs text-muted-foreground">
-                Citizenship {maskCitizenship(consumer?.citizenshipNo)}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {consumer?.address ?? "No address"}
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div className="flex flex-wrap items-center gap-4 border-b border-border bg-secondary/40 p-6">
+            <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary text-lg font-display font-bold text-primary-foreground">
+              {initials(consumer?.fullName) || "C"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-display text-xl font-bold">
+                {consumer?.fullName ?? "Consumer"}
               </p>
               {consumer?.phone ? (
-                <p className="text-sm text-muted-foreground">{consumer.phone}</p>
-              ) : null}
-              <p className="mt-1 text-sm text-muted-foreground">
-                Total purchased {consumer?.totalPurchasedQuantity ?? 0} cylinders
-              </p>
-              {consumer?.lastCollectedAt ? (
-                <p className="text-sm text-muted-foreground">
-                  Last collected {formatDateTime(consumer.lastCollectedAt)}
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Phone className="size-3.5" /> {consumer.phone}
                 </p>
               ) : null}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {activeEntry ? (
+                  <StatusBadge status={activeEntry.status} />
+                ) : latestCollectedHere ? (
+                  <span className="rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success ring-1 ring-inset ring-success/30">
+                    Already collected
+                  </span>
+                ) : null}
+                {consumer?.cooldownUntil && consumer.cooldownUntil > Date.now() ? (
+                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+                    Cooldown active
+                  </span>
+                ) : null}
+              </div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              {activeEntry ? (
-                <StatusBadge status={activeEntry.status} />
-              ) : latestCollectedHere ? (
-                <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success ring-1 ring-inset ring-success/30">
-                  Already collected
-                </span>
-              ) : null}
-              {consumer?.cooldownUntil && consumer.cooldownUntil > Date.now() ? (
-                <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-                  Cooldown active
-                </span>
-              ) : null}
-            </div>
+          </div>
+
+          <div className="grid gap-px bg-border sm:grid-cols-2">
+            <InfoTile label="Citizenship" value={maskCitizenship(consumer?.citizenshipNo)} />
+            <InfoTile label="Address" value={consumer?.address ?? "-"} />
+            <InfoTile
+              label="Total purchased"
+              value={`${consumer?.totalPurchasedQuantity ?? 0} cylinders`}
+            />
+            <InfoTile
+              label="Last collected"
+              value={consumer?.lastCollectedAt ? formatDateTime(consumer.lastCollectedAt) : "-"}
+            />
           </div>
 
           {activeEntry ? (
             <>
-              <div className="mt-5 rounded-xl bg-secondary/60 p-4 text-sm">
-                <p>
-                  <span className="font-medium">Request:</span> {activeEntry.quantity} x{" "}
-                  {activeEntry.cylinderSize}
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  Joined {formatDateTime(activeEntry.createdAt)}
-                  {activeEntry.allottedAt
-                    ? ` - allotted ${formatDateTime(activeEntry.allottedAt)}`
-                    : ""}
-                </p>
-                {activeEntry.note ? <p className="mt-2">Note: {activeEntry.note}</p> : null}
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {activeEntry.status === "waiting" ? (
-                  <Button
-                    className="flex-1"
-                    onClick={() => void act("allot")}
-                    disabled={busy || (dealer?.stock ?? 0) < activeEntry.quantity}
-                  >
-                    {busy ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Check className="size-4" />
-                    )}
-                    {(dealer?.stock ?? 0) < activeEntry.quantity ? "Not enough stock" : "Allot gas"}
-                  </Button>
-                ) : (
-                  <Button className="flex-1" onClick={() => void act("collect")} disabled={busy}>
-                    {busy ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <PackageCheck className="size-4" />
-                    )}
-                    Confirm handover
-                  </Button>
-                )}
-                <Button variant="outline" onClick={resetScan}>
-                  Scan again
-                </Button>
-              </div>
-
-              {activeEntry.status === "allotted" ? (
-                <div className="mt-3 rounded-xl border border-success/30 bg-success/10 p-3 text-sm">
-                  <p className="font-medium text-success">Waiting for customer confirmation</p>
-                  <p className="mt-1 text-muted-foreground">
-                    The customer now sees "Confirm collection" in their app — the cylinder is
-                    transferred the moment they confirm. Use "Confirm handover" above if they're not
-                    carrying their device.
-                  </p>
+              <div className="px-6 py-5">
+                <div className="rounded-xl bg-secondary/60 p-4 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">
+                      Request: {activeEntry.quantity} x {activeEntry.cylinderSize}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Joined {formatDateTime(activeEntry.createdAt)}
+                    </p>
+                  </div>
+                  {activeEntry.allottedAt ? (
+                    <p className="mt-1 text-muted-foreground">
+                      Allotted {formatDateTime(activeEntry.allottedAt)}
+                    </p>
+                  ) : null}
+                  {activeEntry.note ? (
+                    <p className="mt-2 rounded-lg bg-background/60 px-3 py-2">
+                      <span className="font-medium">Note:</span> {activeEntry.note}
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {activeEntry.status === "waiting" ? (
+                    <Button
+                      className="flex-1"
+                      onClick={() => void act("allot")}
+                      disabled={busy || (dealer?.stock ?? 0) < activeEntry.quantity}
+                    >
+                      {busy ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Check className="size-4" />
+                      )}
+                      {(dealer?.stock ?? 0) < activeEntry.quantity
+                        ? "Not enough stock"
+                        : "Allot gas"}
+                    </Button>
+                  ) : (
+                    <Button className="flex-1" onClick={() => void act("collect")} disabled={busy}>
+                      {busy ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <PackageCheck className="size-4" />
+                      )}
+                      Confirm handover
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={resetScan}>
+                    Scan again
+                  </Button>
+                </div>
+
+                {activeEntry.status === "allotted" ? (
+                  <div className="mt-3 rounded-xl border border-success/30 bg-success/10 p-3 text-sm">
+                    <p className="font-medium text-success">Waiting for customer confirmation</p>
+                    <p className="mt-1 text-muted-foreground">
+                      The customer now sees "Confirm collection" in their app - the cylinder is
+                      transferred the moment they confirm. Use "Confirm handover" above if they're
+                      not carrying their device.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
-            <div className="mt-5 rounded-xl border border-dashed border-border p-4 text-sm">
-              {latestCollectedHere ? (
-                <div>
-                  <p className="font-semibold text-success">Already collected at this depot</p>
-                  <p className="mt-1 text-muted-foreground">
-                    {latestCollectedHere.quantity} x {latestCollectedHere.cylinderSize} handed over
-                    {latestCollectedHere.collectedAt
-                      ? ` on ${formatDateTime(latestCollectedHere.collectedAt)}`
-                      : ""}
-                    .
+            <div className="px-6 py-5">
+              <div className="rounded-xl border border-dashed border-border p-4 text-sm">
+                {latestCollectedHere ? (
+                  <div>
+                    <p className="font-semibold text-success">Already collected at this depot</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {latestCollectedHere.quantity} x {latestCollectedHere.cylinderSize} handed
+                      over
+                      {latestCollectedHere.collectedAt
+                        ? ` on ${formatDateTime(latestCollectedHere.collectedAt)}`
+                        : ""}
+                      .
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    No active queue entry at this depot, but the person's history is shown below.
                   </p>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  No active queue entry at this depot, but the person's history is shown below.
-                </p>
-              )}
-              {coolingDown ? (
-                <p className="mt-2 text-muted-foreground">
-                  This customer is cooling down until{" "}
-                  {consumer?.cooldownUntil ? formatDateTime(consumer.cooldownUntil) : "later"} —
-                  they cannot rejoin yet.
-                </p>
-              ) : (
-                <Button
-                  className="mt-3"
-                  size="sm"
-                  onClick={() => void addToQueueAction()}
-                  disabled={addBusy}
-                >
-                  {addBusy ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="size-4" />
-                  )}
-                  Add to waitlist
-                </Button>
-              )}
+                )}
+                {coolingDown ? (
+                  <p className="mt-2 text-muted-foreground">
+                    This customer is cooling down until{" "}
+                    {consumer?.cooldownUntil ? formatDateTime(consumer.cooldownUntil) : "later"} -
+                    they cannot rejoin yet.
+                  </p>
+                ) : (
+                  <Button
+                    className="mt-3"
+                    size="sm"
+                    onClick={() => void addToQueueAction()}
+                    disabled={addBusy}
+                  >
+                    {addBusy ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="size-4" />
+                    )}
+                    Add to waitlist
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
           {overview.recent.length > 0 ? (
-            <div className="mt-6">
+            <div className="border-t border-border px-6 py-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">Recent purchases</p>
                 <p className="text-xs text-muted-foreground">
@@ -446,17 +517,17 @@ function DealerScan() {
                 {overview.recent.map((row) => (
                   <div
                     key={row._id}
-                    className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div>
                       <p className="font-medium">{row.dealer?.businessName ?? "Depot"}</p>
-                      <span className="text-xs text-muted-foreground">
-                        {row.collectedAt ? formatDateTime(row.collectedAt) : "Collected"}
-                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {row.quantity} x {row.cylinderSize}
+                      </p>
                     </div>
-                    <p className="text-muted-foreground">
-                      {row.quantity} x {row.cylinderSize}
-                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {row.collectedAt ? formatDateTime(row.collectedAt) : "Collected"}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -464,6 +535,25 @@ function DealerScan() {
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function initials(name: string | undefined): string {
+  if (!name) return "";
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-card px-5 py-4">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium">{value}</p>
     </div>
   );
 }

@@ -30,7 +30,7 @@ async function dealerWaitingLines(
         q.eq("dealerId", dealerId).eq("status", "waiting"),
       )
       .collect();
-    rows.sort((a, b) => a.createdAt - b.createdAt);
+    rows.sort((a: Doc<"waitlistEntries">, b: Doc<"waitlistEntries">) => a.createdAt - b.createdAt);
     lines.set(dealerId, rows);
   }
   return lines;
@@ -577,7 +577,7 @@ export const joinDepot = mutation({
       consumerAccountId: account._id,
       quantity: args.quantity,
       cylinderSize: args.cylinderSize,
-      note: args.note?.trim() || undefined,
+      ...(args.note?.trim() ? { note: args.note.trim() } : {}),
       status: "waiting",
       createdAt: Date.now(),
     });
@@ -812,6 +812,7 @@ export const cancelEntry = mutation({
     entryId: v.id("waitlistEntries"),
     sessionToken: v.optional(v.string()),
     requesterAccountId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const requester = await accountByIdOrSession(ctx, resolveActor(args));
@@ -823,7 +824,14 @@ export const cancelEntry = mutation({
       throw new ConvexError("Not allowed");
     }
     if (!activeStatuses.has(entry.status)) throw new ConvexError("Cannot cancel this request");
-    await ctx.db.patch(entry._id, { status: "cancelled" });
+    const reason = args.reason?.trim();
+    if (dealer?.ownerAccountId === requester._id && !reason) {
+      throw new ConvexError("Please add a reason for cancelling");
+    }
+    await ctx.db.patch(entry._id, {
+      status: "cancelled",
+      cancelledReason: reason || undefined,
+    });
     if (entry.status === "allotted" && dealer) {
       await ctx.db.patch(dealer._id, { stock: dealer.stock + entry.quantity });
     }
@@ -831,13 +839,18 @@ export const cancelEntry = mutation({
       ctx,
       entry.consumerAccountId,
       "Request cancelled",
-      dealer ? `Your request at ${dealer.businessName} was cancelled.` : undefined,
+      dealer
+        ? `Your request at ${dealer.businessName} was cancelled.${
+            reason ? ` Reason: ${reason}` : ""
+          }`
+        : undefined,
     );
     await auditLog(ctx, {
       actorAccountId: requester._id,
       action: "waitlist:cancel",
       targetType: "waitlistEntry",
       targetId: String(entry._id),
+      ...(reason ? { details: reason } : {}),
     });
     return await ctx.db.get(entry._id);
   },

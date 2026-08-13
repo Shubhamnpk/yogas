@@ -15,9 +15,9 @@ import { friendlyError, stockLabel } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/dealer/stock")({
   head: () => ({
     meta: [
-      { title: "Stock & depot — YoGas" },
+      { title: "Stock & depot - YoGas" },
       { name: "description", content: "Update your cylinder stock and depot details." },
-      { property: "og:title", content: "Stock & depot — YoGas" },
+      { property: "og:title", content: "Stock & depot - YoGas" },
       {
         property: "og:description",
         content: "Keep your stock accurate so the queue stays honest.",

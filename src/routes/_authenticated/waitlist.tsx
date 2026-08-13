@@ -1,21 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Loader2, PackageCheck, Ticket, X } from "lucide-react";
+import { ChevronRight, Loader2, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { RequestDetails, type RequestRow } from "@/components/RequestDetails";
 import { cn } from "@/lib/utils";
-import { formatDateTime, friendlyError, timeAgo } from "@/lib/gas";
+import { friendlyError, timeAgo } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/waitlist")({
   head: () => ({
     meta: [
       { title: "Waitlist - YoGas" },
-      { name: "description", content: "Manage your LPG requests in a simple tabular view." },
+      { name: "description", content: "Manage your LPG requests in a simple card view." },
       { property: "og:title", content: "Waitlist - YoGas" },
       {
         property: "og:description",
@@ -25,19 +26,6 @@ export const Route = createFileRoute("/_authenticated/waitlist")({
   }),
   component: WaitlistPage,
 });
-
-type Row = {
-  _id: Id<"waitlistEntries">;
-  status: "waiting" | "allotted" | "collected" | "cancelled";
-  cylinderSize: string;
-  quantity: number;
-  note?: string;
-  createdAt: number;
-  allottedAt?: number;
-  collectedAt?: number;
-  position?: number;
-  dealer: { businessName: string; district: string } | null;
-};
 
 type Tab = "active" | "allotted" | "collected" | "cancelled" | "all";
 
@@ -56,6 +44,7 @@ function WaitlistPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const rows = useQuery(api.waitlist.consumerWaitlistAll, sessionToken ? { sessionToken } : "skip");
   const [tab, setTab] = useState<Tab>("active");
+  const [selected, setSelected] = useState<RequestRow | null>(null);
 
   const cancel = async (id: Id<"waitlistEntries">) => {
     if (!user) return;
@@ -65,6 +54,7 @@ function WaitlistPage() {
         sessionToken ? { sessionToken, entryId: id } : { entryId: id as Id<"waitlistEntries"> },
       );
       toast.success("Request cancelled");
+      setSelected(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not cancel request"));
     } finally {
@@ -79,7 +69,8 @@ function WaitlistPage() {
       await confirmCollection(
         sessionToken ? { sessionToken, entryId: id } : { accountId: user.accountId, entryId: id },
       );
-      toast.success("Collection confirmed — cylinder handed over");
+      toast.success("Collection confirmed - cylinder handed over");
+      setSelected(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not confirm collection"));
     } finally {
@@ -168,104 +159,50 @@ function WaitlistPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
-                <table className="min-w-[920px] w-full border-separate border-spacing-0">
-                  <thead>
-                    <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="border-b border-border px-4 py-3">Depot</th>
-                      <th className="border-b border-border px-4 py-3">Your place</th>
-                      <th className="border-b border-border px-4 py-3">Status</th>
-                      <th className="border-b border-border px-4 py-3">Qty</th>
-                      <th className="border-b border-border px-4 py-3">Requested</th>
-                      <th className="border-b border-border px-4 py-3">Updated</th>
-                      <th className="border-b border-border px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map((row) => (
-                      <tr key={row._id} className="align-top">
-                        <td className="border-b border-border px-4 py-4">
-                          <p className="font-medium">{row.dealer?.businessName ?? "Depot"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {row.dealer?.district ?? "Unknown district"}
-                          </p>
-                        </td>
-                        <td className="border-b border-border px-4 py-4">
-                          {row.status === "waiting" ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary ring-1 ring-inset ring-primary/25">
-                              #{row.position ?? "?"} in line
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="border-b border-border px-4 py-4">
-                          <StatusBadge status={row.status} />
-                        </td>
-                        <td className="border-b border-border px-4 py-4 text-sm">{row.quantity}</td>
-                        <td className="border-b border-border px-4 py-4 text-sm text-muted-foreground">
-                          {timeAgo(row.createdAt)}
-                        </td>
-                        <td className="border-b border-border px-4 py-4 text-sm text-muted-foreground">
-                          {row.status === "allotted" && row.allottedAt
-                            ? formatDateTime(row.allottedAt)
-                            : "-"}
-                        </td>
-                        <td className="border-b border-border px-4 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {row.status === "allotted" ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  disabled={busyId === row._id}
-                                  onClick={() => void confirm(row._id)}
-                                >
-                                  {busyId === row._id ? (
-                                    <Loader2 className="size-4 animate-spin" />
-                                  ) : (
-                                    <PackageCheck className="size-4" />
-                                  )}{" "}
-                                  Confirm collection
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => void cancel(row._id)}
-                                >
-                                  <X className="size-4" />
-                                </Button>
-                              </>
-                            ) : row.status === "waiting" ? (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => void cancel(row._id)}
-                              >
-                                {busyId === row._id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                  <X className="size-4" />
-                                )}{" "}
-                                Cancel
-                              </Button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="px-1 text-center text-xs text-muted-foreground">
-                Showing {visible.length} of {rows.length} requests.
-              </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {visible.map((row) => (
+                <button
+                  key={row._id}
+                  type="button"
+                  onClick={() => setSelected(row)}
+                  className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left shadow-soft transition-colors hover:bg-accent/50"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-semibold">
+                        {row.dealer?.businessName ?? "Depot"}
+                      </p>
+                      <StatusBadge status={row.status} />
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {row.dealer?.district ?? "Unknown district"} · {timeAgo(row.createdAt)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {row.status === "waiting" ? (
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary ring-1 ring-inset ring-primary/25">
+                          #{row.position ?? "?"} in line
+                        </span>
+                      ) : null}
+                      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                        {row.quantity} × {row.cylinderSize}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </button>
+              ))}
             </div>
           )}
         </div>
       )}
+
+      <RequestDetails
+        entry={selected}
+        busy={busyId === selected?._id}
+        onCancel={(id) => void cancel(id as Id<"waitlistEntries">)}
+        onConfirm={(id) => void confirm(id as Id<"waitlistEntries">)}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }
