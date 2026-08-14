@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,7 @@ export type SwipeCard = {
   title: string;
   value: string;
   sub?: string;
+  icon?: LucideIcon;
 };
 
 type SwipeableCardsProps = {
@@ -60,10 +62,23 @@ export function SwipeableCards({ items }: SwipeableCardsProps) {
               className="flex-shrink-0"
               style={{ width: "100%", scrollSnapAlign: "start" }}
             >
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-                <p className="font-display text-3xl font-bold">{item.value}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{item.title}</p>
-                {item.sub ? <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p> : null}
+              <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft transition-all">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {item.title}
+                  </p>
+                  {item.icon ? (
+                    <span className="grid size-7 place-items-center rounded-xl bg-primary/10 text-xs text-primary">
+                      <item.icon className="size-3.5" />
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 font-display text-3xl font-extrabold text-foreground">
+                  {item.value}
+                </p>
+                {item.sub ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
+                ) : null}
               </div>
             </div>
           ))}

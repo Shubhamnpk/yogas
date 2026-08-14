@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -10,6 +11,7 @@ import {
   ChevronDown,
   ClipboardList,
   Copy,
+  Download,
   Eye,
   EyeOff,
   FileText,
@@ -20,6 +22,7 @@ import {
   MapPin,
   Pencil,
   Phone,
+  Printer,
   QrCode,
   ScanLine,
   ShieldAlert,
@@ -32,6 +35,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import { useAuth } from "@/lib/auth";
+import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,7 +94,8 @@ function ConsumerProfile() {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [qrOpen, setQrOpen] = useState(true); // Default open on mobile for fast access at counter
+  const [qrOpen, setQrOpen] = useState(false);
+  const [personalOpen, setPersonalOpen] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
     citizenship_no: "",
@@ -220,9 +225,9 @@ function ConsumerProfile() {
       {/* Mobile-Optimized Hero Section */}
       <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
         {/* Subtle Elegant Header */}
-        <div className="relative h-24 sm:h-32 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border-b border-border/50">
+        <div className="relative hidden h-24 sm:block sm:h-32 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border-b border-border/50">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_-20%,rgba(255,255,255,0.2),transparent_60%)]" />
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -237,10 +242,10 @@ function ConsumerProfile() {
         <div className="px-4 sm:px-6 pb-5 sm:pb-6">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex items-end gap-3.5 sm:gap-4 min-w-0">
-              <div className="-mt-12 sm:-mt-10 grid size-20 sm:size-24 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl sm:text-3xl font-extrabold text-primary-foreground shadow-md ring-4 ring-card">
+              <div className="grid size-20 sm:size-24 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl sm:text-3xl font-extrabold text-primary-foreground shadow-md ring-4 ring-card sm:-mt-10">
                 {initials(profile?.full_name) || "U"}
               </div>
-              <div className="min-w-0 flex-1 pb-1">
+              <div className="min-w-0 flex-1 pt-4 pb-1 sm:pt-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
                     <User className="size-3" /> Consumer Account
@@ -251,7 +256,8 @@ function ConsumerProfile() {
                 </h1>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground">
                   <span className="flex items-center gap-1 font-medium text-foreground/80">
-                    <AtSign className="size-3.5 shrink-0 text-primary" /> {formatUsername(profile?.username)}
+                    <AtSign className="size-3.5 shrink-0 text-primary" />{" "}
+                    {formatUsername(profile?.username)}
                   </span>
                   {address ? (
                     <span className="flex min-w-0 items-center gap-1">
@@ -269,20 +275,30 @@ function ConsumerProfile() {
                 type="button"
                 onClick={() => void copyCode()}
                 title="Tap to copy collection code"
-                className="flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 px-3.5 py-2 font-mono text-xs font-bold tracking-wider text-primary transition-all active:scale-95 w-full sm:w-auto justify-between sm:justify-start"
+                className="flex w-full sm:w-auto items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 px-3.5 py-2 font-mono text-xs font-bold tracking-wider text-primary transition-all active:scale-95 justify-between sm:justify-start"
               >
                 <div className="flex items-center gap-1.5">
                   <QrCode className="size-4 text-primary" />
-                  <span>Code: <strong className="text-foreground">{code || "-"}</strong></span>
+                  <span>
+                    Code: <strong className="text-foreground">{code || "-"}</strong>
+                  </span>
                 </div>
-                {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5 opacity-60" />}
+                {copied ? (
+                  <Check className="size-3.5 text-success" />
+                ) : (
+                  <Copy className="size-3.5 opacity-60" />
+                )}
               </button>
             </div>
           </div>
 
           {/* Quick Action Navigation Bar */}
           <div className="mt-5 grid grid-cols-2 gap-2.5">
-            <Button asChild variant="outline" className="h-12 rounded-2xl justify-start px-4 border-border/80 hover:border-primary/40 hover:bg-accent/50 transition-all">
+            <Button
+              asChild
+              variant="outline"
+              className="h-12 rounded-2xl justify-start px-4 border-border/80 hover:border-primary/40 hover:bg-accent/50 transition-all"
+            >
               <Link to="/waitlist" className="flex items-center gap-2.5">
                 <span className="p-1.5 rounded-xl bg-orange-500/10 text-orange-600">
                   <ClipboardList className="size-4" />
@@ -293,8 +309,12 @@ function ConsumerProfile() {
                 </div>
               </Link>
             </Button>
-            
-            <Button asChild variant="outline" className="h-12 rounded-2xl justify-start px-4 border-border/80 hover:border-primary/40 hover:bg-accent/50 transition-all">
+
+            <Button
+              asChild
+              variant="outline"
+              className="h-12 rounded-2xl justify-start px-4 border-border/80 hover:border-primary/40 hover:bg-accent/50 transition-all"
+            >
               <Link to="/dealers" className="flex items-center gap-2.5">
                 <span className="p-1.5 rounded-xl bg-blue-500/10 text-blue-600">
                   <Store className="size-4" />
@@ -338,8 +358,15 @@ function ConsumerProfile() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Username</Label>
-                  <Input className="h-11 rounded-xl bg-muted/40" value={profile?.username ?? ""} readOnly disabled />
-                  <p className="text-[11px] text-muted-foreground">System-assigned account identifier.</p>
+                  <Input
+                    className="h-11 rounded-xl bg-muted/40"
+                    value={profile?.username ?? ""}
+                    readOnly
+                    disabled
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    System-assigned account identifier.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -360,7 +387,11 @@ function ConsumerProfile() {
                       aria-label={reveal ? "Hide citizenship number" : "Show citizenship number"}
                       onClick={() => setReveal((v) => !v)}
                     >
-                      {reveal ? <EyeOff className="size-4 text-primary" /> : <Eye className="size-4 text-muted-foreground" />}
+                      {reveal ? (
+                        <EyeOff className="size-4 text-primary" />
+                      ) : (
+                        <Eye className="size-4 text-muted-foreground" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -373,7 +404,9 @@ function ConsumerProfile() {
                     options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
                     placeholder="Select district"
                   />
-                  <p className="text-[11px] text-muted-foreground">Used for filtering local depots.</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Used for filtering local depots.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -400,48 +433,115 @@ function ConsumerProfile() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Email Address</Label>
-                  <Input className="h-11 rounded-xl bg-muted/40" value={profile?.email ?? user?.email ?? ""} readOnly disabled />
+                  <Input
+                    className="h-11 rounded-xl bg-muted/40"
+                    value={profile?.email ?? user?.email ?? ""}
+                    readOnly
+                    disabled
+                  />
                 </div>
               </div>
 
               <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
-                <Button type="button" variant="outline" className="h-11 rounded-xl sm:flex-1" onClick={() => setEditing(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl sm:flex-1"
+                  onClick={() => setEditing(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={busy} className="h-11 rounded-xl sm:flex-1 font-semibold">
+                <Button
+                  type="submit"
+                  disabled={busy}
+                  className="h-11 rounded-xl sm:flex-1 font-semibold"
+                >
                   {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Changes
                 </Button>
               </div>
             </form>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                    <User className="size-4.5" />
-                  </span>
-                  <div>
-                    <h2 className="font-display font-bold text-base text-foreground">Personal Details</h2>
-                    <p className="text-xs text-muted-foreground">Information verified by depots</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" className="h-9 rounded-xl gap-1.5 font-medium text-xs" onClick={() => enterEdit()}>
+            <Collapsible
+              open={isMobile ? personalOpen : true}
+              onOpenChange={setPersonalOpen}
+              className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft"
+            >
+              <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                        <User className="size-4.5" />
+                      </span>
+                      <div>
+                        <h2 className="font-display font-bold text-base text-foreground">
+                          Personal Details
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                          Information verified by depots
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "size-5 shrink-0 text-muted-foreground transition-transform duration-300 sm:hidden",
+                        personalOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mr-3 h-9 shrink-0 rounded-xl gap-1.5 font-medium text-xs"
+                  onClick={() => enterEdit()}
+                >
                   <Pencil className="size-3.5" /> Edit Profile
                 </Button>
               </div>
-
-              {/* Mobile-Friendly Grid List of Details */}
-              <div className="divide-y divide-border/40">
-                <MobileDetailRow icon={User} label="Full Name" value={profile?.full_name ?? "-"} />
-                <MobileDetailRow icon={AtSign} label="Username" value={formatUsername(profile?.username)} />
-                <MobileDetailRow icon={FileText} label="Citizenship No." value={maskCitizenship(profile?.citizenship_no)} />
-                <MobileDetailRow icon={MapPin} label="District" value={profile?.district ?? "-"} />
-                <MobileDetailRow icon={MapPin} label="Local Address" value={profile?.address ?? "-"} />
-                <MobileDetailRow icon={Phone} label="Phone Number" value={profile?.phone ?? "-"} />
-                <MobileDetailRow icon={Mail} label="Email Address" value={profile?.email ?? user?.email ?? "-"} />
-              </div>
-            </div>
+              <CollapsibleContent>
+                <div className="divide-y divide-border/40">
+                  <MobileDetailRow
+                    icon={User}
+                    label="Full Name"
+                    value={profile?.full_name ?? "-"}
+                  />
+                  <MobileDetailRow
+                    icon={AtSign}
+                    label="Username"
+                    value={formatUsername(profile?.username)}
+                  />
+                  <MobileDetailRow
+                    icon={FileText}
+                    label="Citizenship No."
+                    value={maskCitizenship(profile?.citizenship_no)}
+                  />
+                  <MobileDetailRow
+                    icon={MapPin}
+                    label="District"
+                    value={profile?.district ?? "-"}
+                  />
+                  <MobileDetailRow
+                    icon={MapPin}
+                    label="Local Address"
+                    value={profile?.address ?? "-"}
+                  />
+                  <MobileDetailRow
+                    icon={Phone}
+                    label="Phone Number"
+                    value={profile?.phone ?? "-"}
+                  />
+                  <MobileDetailRow
+                    icon={Mail}
+                    label="Email Address"
+                    value={profile?.email ?? user?.email ?? "-"}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </div>
 
@@ -459,7 +559,9 @@ function ConsumerProfile() {
                       <QrCode className="size-5" />
                     </span>
                     <div>
-                      <h2 className="font-display font-bold text-base text-foreground">Collection QR Pass</h2>
+                      <h2 className="font-display font-bold text-base text-foreground">
+                        Collection QR Pass
+                      </h2>
                       <p className="text-xs text-muted-foreground">Tap to toggle QR scan view</p>
                     </div>
                   </div>
@@ -482,7 +584,9 @@ function ConsumerProfile() {
                   <QrCode className="size-4.5" />
                 </span>
                 <div>
-                  <h2 className="font-display font-bold text-base text-foreground">Collection QR Pass</h2>
+                  <h2 className="font-display font-bold text-base text-foreground">
+                    Collection QR Pass
+                  </h2>
                   <p className="text-xs text-muted-foreground">Present at depot counter</p>
                 </div>
               </div>
@@ -491,6 +595,15 @@ function ConsumerProfile() {
           )}
         </aside>
       </div>
+
+      <Button
+        variant="outline"
+        size="lg"
+        onClick={() => void handleSignOut()}
+        className="h-12 w-full rounded-2xl border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 sm:hidden"
+      >
+        <LogOut className="size-4" /> Sign out
+      </Button>
     </div>
   );
 }
@@ -508,11 +621,26 @@ function DealerProfile() {
   const [busy, setBusy] = useState(false);
   const [editingOwner, setEditingOwner] = useState(false);
   const [editingDepot, setEditingDepot] = useState(false);
-  const [qrOpen, setQrOpen] = useState(true);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [ownerOpen, setOwnerOpen] = useState(false);
+  const [depotOpen, setDepotOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
-  const [ownerForm, setOwnerForm] = useState({ full_name: "", district: "", address: "", phone: "" });
-  const [depotForm, setDepotForm] = useState({ business_name: "", license_no: "", district: "", address: "", phone: "" });
+  const [ownerForm, setOwnerForm] = useState({
+    full_name: "",
+    district: "",
+    address: "",
+    phone: "",
+  });
+  const [depotForm, setDepotForm] = useState({
+    business_name: "",
+    license_no: "",
+    district: "",
+    address: "",
+    phone: "",
+  });
 
   useEffect(() => {
     if (profile) {
@@ -631,6 +759,28 @@ function DealerProfile() {
     }
   };
 
+  const downloadQr = async () => {
+    if (!printRef.current) return;
+    try {
+      setDownloading(true);
+      const dataUrl = await toPng(printRef.current, {
+        pixelRatio: 3,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+        style: { margin: "0" },
+      });
+      const link = document.createElement("a");
+      link.download = `yogas-depot-${dealer?.code ?? "qr"}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("Depot card downloaded");
+    } catch {
+      toast.error("Could not export the depot card");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     void navigate({ to: "/auth", replace: true });
@@ -645,22 +795,101 @@ function DealerProfile() {
       <p className="text-xs text-muted-foreground max-w-xs">
         Consumers scan this QR code to join your waitlist. Display it prominently at your counter.
       </p>
-      {qrValue ? (
-        <div className="rounded-3xl bg-white p-5 shadow-md ring-1 ring-black/5">
-          <QRCodeSVG value={qrValue} size={isMobile ? 160 : 140} level="M" />
+      <div className="mx-auto w-fit">
+        <style>{`
+          @media print {
+            body * { visibility: hidden !important; }
+            #depot-print-card, #depot-print-card * { visibility: visible !important; }
+            #depot-print-card {
+              position: fixed !important;
+              left: 50% !important;
+              top: 50% !important;
+              transform: translate(-50%, -50%) scale(1.7) !important;
+              box-shadow: none !important;
+              border-radius: 12px !important;
+              margin: 0 !important;
+            }
+          }
+        `}</style>
+        <div
+          ref={printRef}
+          id="depot-print-card"
+          className="flex w-[300px] flex-col overflow-hidden rounded-3xl bg-white text-center shadow-md ring-1 ring-black/5"
+          style={{ margin: 0 }}
+        >
+          <div className="bg-gradient-to-r from-primary to-amber-500 px-6 py-4">
+            <div className="flex items-center justify-center gap-2">
+              <LogoMark className="size-7" />
+              <span className="font-display text-lg font-extrabold tracking-tight text-white">
+                YoGas
+              </span>
+            </div>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/90">
+              Depot Entry Pass
+            </p>
+          </div>
+
+          <div className="flex flex-1 flex-col items-center justify-center gap-3.5 px-6 py-6">
+            {qrValue ? (
+              <div className="rounded-2xl bg-white p-3 ring-1 ring-black/10">
+                <QRCodeSVG value={qrValue} size={180} level="M" />
+              </div>
+            ) : null}
+            <div className="space-y-0.5">
+              <p className="font-display text-lg font-bold leading-tight text-foreground">
+                {dealer.business_name}
+              </p>
+              <p className="font-mono text-sm font-extrabold tracking-[0.25em] text-primary">
+                {code || "-"}
+              </p>
+            </div>
+            <p className="max-w-[240px] text-[11px] leading-relaxed text-muted-foreground">
+              {address}
+              {dealer.phone ? <> · {dealer.phone}</> : null}
+            </p>
+          </div>
+
+          <div className="border-t border-black/5 bg-muted/30 px-6 py-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/80">
+              Scan to join the queue
+            </p>
+          </div>
         </div>
-      ) : null}
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Depot Code</p>
-        <p className="font-mono text-2xl font-extrabold tracking-widest text-primary">{code || "-"}</p>
-        <p className="text-xs text-muted-foreground">{dealer.business_name}</p>
       </div>
-      
-      <Button variant={copied ? "default" : "outline"} className="w-full h-11 rounded-xl" onClick={() => void copyCode()}>
-        {copied ? <Check className="size-4 mr-1.5 text-success-foreground" /> : <Copy className="size-4 mr-1.5" />}
+
+      <Button
+        variant={copied ? "default" : "outline"}
+        className="w-full h-11 rounded-xl"
+        onClick={() => void copyCode()}
+      >
+        {copied ? (
+          <Check className="size-4 mr-1.5 text-success-foreground" />
+        ) : (
+          <Copy className="size-4 mr-1.5" />
+        )}
         {copied ? "Copied" : "Copy Depot Code"}
       </Button>
-      
+
+      <div className="grid w-full grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          className="h-11 rounded-xl"
+          onClick={() => void downloadQr()}
+          disabled={downloading || !qrValue}
+        >
+          {downloading ? (
+            <Loader2 className="size-4 mr-1.5 animate-spin" />
+          ) : (
+            <Download className="size-4 mr-1.5 text-primary" />
+          )}
+          {downloading ? "Preparing…" : "Download"}
+        </Button>
+
+        <Button variant="outline" className="h-11 rounded-xl" onClick={() => window.print()}>
+          <Printer className="size-4 mr-1.5 text-primary" /> Print Card
+        </Button>
+      </div>
+
       <Button asChild variant="secondary" className="w-full h-11 rounded-xl">
         <Link to="/dealer/stock">
           <Boxes className="size-4 mr-1.5 text-primary" /> Manage Stock & Availability
@@ -675,7 +904,7 @@ function DealerProfile() {
     <div className="space-y-4 sm:space-y-6 pb-12">
       {/* Hero with Elegant Subtle Styling */}
       <section className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
-        <div className="relative h-24 sm:h-32 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border-b border-border/50">
+        <div className="relative hidden h-24 sm:block sm:h-32 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border-b border-border/50">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_-20%,rgba(255,255,255,0.2),transparent_60%)]" />
           <Button
             variant="ghost"
@@ -690,16 +919,21 @@ function DealerProfile() {
         <div className="px-4 sm:px-6 pb-5 sm:pb-6">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex items-end gap-3.5 sm:gap-4 min-w-0">
-              <span className="-mt-12 sm:-mt-10 grid size-20 sm:size-24 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl sm:text-3xl font-extrabold text-primary-foreground shadow-md ring-4 ring-card">
+              <span className="grid size-20 sm:size-24 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl sm:text-3xl font-extrabold text-primary-foreground shadow-md ring-4 ring-card sm:-mt-10">
                 {initials(dealer.business_name) || "D"}
               </span>
-              <div className="min-w-0 flex-1 pb-1">
+              <div className="min-w-0 flex-1 pt-4 pb-1 sm:pt-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
                     <Store className="size-3" /> Depot Owner
                   </span>
                   {approval ? (
-                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold", approval.classes)}>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                        approval.classes,
+                      )}
+                    >
                       <approval.icon className="size-3" /> {approval.label}
                     </span>
                   ) : null}
@@ -713,7 +947,10 @@ function DealerProfile() {
                     <span className="truncate">{address}</span>
                   </span>
                   {dealer.phone ? (
-                    <a href={`tel:${dealer.phone}`} className="flex items-center gap-1 text-primary hover:underline font-medium">
+                    <a
+                      href={`tel:${dealer.phone}`}
+                      className="flex items-center gap-1 text-primary hover:underline font-medium"
+                    >
                       <Phone className="size-3.5 shrink-0" /> {dealer.phone}
                     </a>
                   ) : null}
@@ -746,7 +983,10 @@ function DealerProfile() {
         <div className="space-y-4 sm:space-y-6">
           {/* Depot Details Edit Form */}
           {editingDepot ? (
-            <form onSubmit={saveDepot} className="space-y-4 rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-soft">
+            <form
+              onSubmit={saveDepot}
+              className="space-y-4 rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-soft"
+            >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <h2 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
                   <Pencil className="size-4 text-primary" /> Edit Depot Information
@@ -756,35 +996,79 @@ function DealerProfile() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Business Name *</Label>
-                  <Input className="h-11 rounded-xl" value={depotForm.business_name} onChange={(e) => setDepotForm({ ...depotForm, business_name: e.target.value })} maxLength={90} placeholder="Depot business name" />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={depotForm.business_name}
+                    onChange={(e) => setDepotForm({ ...depotForm, business_name: e.target.value })}
+                    maxLength={90}
+                    placeholder="Depot business name"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">License Number</Label>
-                  <Input className="h-11 rounded-xl" value={depotForm.license_no} onChange={(e) => setDepotForm({ ...depotForm, license_no: e.target.value })} maxLength={40} placeholder="LPG License No. (optional)" />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={depotForm.license_no}
+                    onChange={(e) => setDepotForm({ ...depotForm, license_no: e.target.value })}
+                    maxLength={40}
+                    placeholder="LPG License No. (optional)"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">District *</Label>
-                  <Combobox value={depotForm.district} onValueChange={(v) => setDepotForm({ ...depotForm, district: v })} options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))} placeholder="Select district" />
+                  <Combobox
+                    value={depotForm.district}
+                    onValueChange={(v) => setDepotForm({ ...depotForm, district: v })}
+                    options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
+                    placeholder="Select district"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Address *</Label>
-                  <Input className="h-11 rounded-xl" value={depotForm.address} onChange={(e) => setDepotForm({ ...depotForm, address: e.target.value })} maxLength={160} placeholder="Location, street, ward" />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={depotForm.address}
+                    onChange={(e) => setDepotForm({ ...depotForm, address: e.target.value })}
+                    maxLength={160}
+                    placeholder="Location, street, ward"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Contact Phone</Label>
-                  <Input className="h-11 rounded-xl" value={depotForm.phone} onChange={(e) => setDepotForm({ ...depotForm, phone: e.target.value })} maxLength={20} placeholder="98XXXXXXXX" />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={depotForm.phone}
+                    onChange={(e) => setDepotForm({ ...depotForm, phone: e.target.value })}
+                    maxLength={20}
+                    placeholder="98XXXXXXXX"
+                  />
                 </div>
               </div>
               <div className="flex gap-2.5 pt-2">
-                <Button type="button" variant="outline" className="h-11 rounded-xl flex-1" onClick={() => setEditingDepot(false)}>Cancel</Button>
-                <Button type="submit" disabled={busy} className="h-11 rounded-xl flex-1 font-semibold">
-                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Depot Details
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl flex-1"
+                  onClick={() => setEditingDepot(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={busy}
+                  className="h-11 rounded-xl flex-1 font-semibold"
+                >
+                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Depot
+                  Details
                 </Button>
               </div>
             </form>
           ) : editingOwner ? (
             /* Owner Account Edit Form */
-            <form onSubmit={saveOwner} className="space-y-4 rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-soft">
+            <form
+              onSubmit={saveOwner}
+              className="space-y-4 rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-soft"
+            >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <h2 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
                   <Pencil className="size-4 text-primary" /> Edit Owner Profile
@@ -794,82 +1078,199 @@ function DealerProfile() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Full Name *</Label>
-                  <Input className="h-11 rounded-xl" value={ownerForm.full_name} onChange={(e) => setOwnerForm({ ...ownerForm, full_name: e.target.value })} maxLength={80} />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={ownerForm.full_name}
+                    onChange={(e) => setOwnerForm({ ...ownerForm, full_name: e.target.value })}
+                    maxLength={80}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Username</Label>
-                  <Input className="h-11 rounded-xl bg-muted/40" value={profile?.username ?? ""} readOnly disabled />
+                  <Input
+                    className="h-11 rounded-xl bg-muted/40"
+                    value={profile?.username ?? ""}
+                    readOnly
+                    disabled
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">District *</Label>
-                  <Combobox value={ownerForm.district} onValueChange={(v) => setOwnerForm({ ...ownerForm, district: v })} options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))} placeholder="Select district" />
+                  <Combobox
+                    value={ownerForm.district}
+                    onValueChange={(v) => setOwnerForm({ ...ownerForm, district: v })}
+                    options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
+                    placeholder="Select district"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Address</Label>
-                  <Input className="h-11 rounded-xl" value={ownerForm.address} onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })} maxLength={160} />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={ownerForm.address}
+                    onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })}
+                    maxLength={160}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Phone</Label>
-                  <Input className="h-11 rounded-xl" value={ownerForm.phone} onChange={(e) => setOwnerForm({ ...ownerForm, phone: e.target.value })} maxLength={20} />
+                  <Input
+                    className="h-11 rounded-xl"
+                    value={ownerForm.phone}
+                    onChange={(e) => setOwnerForm({ ...ownerForm, phone: e.target.value })}
+                    maxLength={20}
+                  />
                 </div>
               </div>
               <div className="flex gap-2.5 pt-2">
-                <Button type="button" variant="outline" className="h-11 rounded-xl flex-1" onClick={() => setEditingOwner(false)}>Cancel</Button>
-                <Button type="submit" disabled={busy} className="h-11 rounded-xl flex-1 font-semibold">
-                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Owner Profile
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl flex-1"
+                  onClick={() => setEditingOwner(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={busy}
+                  className="h-11 rounded-xl flex-1 font-semibold"
+                >
+                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Owner
+                  Profile
                 </Button>
               </div>
             </form>
           ) : (
             <>
               {/* Depot Details Section with Direct Inline Edit Button */}
-              <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
-                <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30 px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                      <Store className="size-4.5" />
-                    </span>
-                    <div>
-                      <h2 className="font-display font-bold text-base text-foreground">Depot Information</h2>
-                      <p className="text-xs text-muted-foreground">Public business details seen by consumers</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-9 rounded-xl gap-1.5 font-medium text-xs" onClick={() => enterEditDepot()}>
+              <Collapsible
+                open={isMobile ? depotOpen : true}
+                onOpenChange={setDepotOpen}
+                className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft"
+              >
+                <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30">
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                          <Store className="size-4.5" />
+                        </span>
+                        <div>
+                          <h2 className="font-display font-bold text-base text-foreground">
+                            Depot Information
+                          </h2>
+                          <p className="text-xs text-muted-foreground">
+                            Public business details seen by consumers
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          "size-5 shrink-0 text-muted-foreground transition-transform duration-300 sm:hidden",
+                          depotOpen && "rotate-180",
+                        )}
+                      />
+                    </button>
+                  </CollapsibleTrigger>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mr-3 h-9 shrink-0 rounded-xl gap-1.5 font-medium text-xs"
+                    onClick={() => enterEditDepot()}
+                  >
                     <Pencil className="size-3.5" /> Edit Depot
                   </Button>
                 </div>
-                <div className="divide-y divide-border/40">
-                  <MobileDetailRow icon={Store} label="Business Name" value={dealer.business_name} />
-                  <MobileDetailRow icon={BadgeCheck} label="License No." value={dealer.license_no ?? "-"} />
-                  <MobileDetailRow icon={MapPin} label="District" value={dealer.district} />
-                  <MobileDetailRow icon={MapPin} label="Address" value={dealer.address ?? "-"} />
-                  <MobileDetailRow icon={Phone} label="Contact Phone" value={dealer.phone ?? "-"} />
-                </div>
-              </div>
+                <CollapsibleContent>
+                  <div className="divide-y divide-border/40">
+                    <MobileDetailRow
+                      icon={Store}
+                      label="Business Name"
+                      value={dealer.business_name}
+                    />
+                    <MobileDetailRow
+                      icon={BadgeCheck}
+                      label="License No."
+                      value={dealer.license_no ?? "-"}
+                    />
+                    <MobileDetailRow icon={MapPin} label="District" value={dealer.district} />
+                    <MobileDetailRow icon={MapPin} label="Address" value={dealer.address ?? "-"} />
+                    <MobileDetailRow
+                      icon={Phone}
+                      label="Contact Phone"
+                      value={dealer.phone ?? "-"}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Owner Account Section */}
-              <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
-                <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30 px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                      <User className="size-4.5" />
-                    </span>
-                    <div>
-                      <h2 className="font-display font-bold text-base text-foreground">Owner Account</h2>
-                      <p className="text-xs text-muted-foreground">Personal registration details</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-9 rounded-xl gap-1.5 font-medium text-xs" onClick={() => enterEditOwner()}>
+              <Collapsible
+                open={isMobile ? ownerOpen : true}
+                onOpenChange={setOwnerOpen}
+                className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft"
+              >
+                <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30">
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                          <User className="size-4.5" />
+                        </span>
+                        <div>
+                          <h2 className="font-display font-bold text-base text-foreground">
+                            Owner Account
+                          </h2>
+                          <p className="text-xs text-muted-foreground">
+                            Personal registration details
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          "size-5 shrink-0 text-muted-foreground transition-transform duration-300 sm:hidden",
+                          ownerOpen && "rotate-180",
+                        )}
+                      />
+                    </button>
+                  </CollapsibleTrigger>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mr-3 h-9 shrink-0 rounded-xl gap-1.5 font-medium text-xs"
+                    onClick={() => enterEditOwner()}
+                  >
                     <Pencil className="size-3.5" /> Edit Owner
                   </Button>
                 </div>
-                <div className="divide-y divide-border/40">
-                  <MobileDetailRow icon={User} label="Full Name" value={profile?.full_name ?? "-"} />
-                  <MobileDetailRow icon={AtSign} label="Username" value={formatUsername(profile?.username)} />
-                  <MobileDetailRow icon={Phone} label="Phone" value={profile?.phone ?? "-"} />
-                  <MobileDetailRow icon={Mail} label="Email" value={profile?.email ?? user?.email ?? "-"} />
-                </div>
-              </div>
+                <CollapsibleContent>
+                  <div className="divide-y divide-border/40">
+                    <MobileDetailRow
+                      icon={User}
+                      label="Full Name"
+                      value={profile?.full_name ?? "-"}
+                    />
+                    <MobileDetailRow
+                      icon={AtSign}
+                      label="Username"
+                      value={formatUsername(profile?.username)}
+                    />
+                    <MobileDetailRow icon={Phone} label="Phone" value={profile?.phone ?? "-"} />
+                    <MobileDetailRow
+                      icon={Mail}
+                      label="Email"
+                      value={profile?.email ?? user?.email ?? "-"}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </>
           )}
         </div>
@@ -888,11 +1289,20 @@ function DealerProfile() {
                       <QrCode className="size-5" />
                     </span>
                     <div>
-                      <h2 className="font-display font-bold text-base text-foreground">Depot QR Code</h2>
-                      <p className="text-xs text-muted-foreground">Customers scan to join waitlist</p>
+                      <h2 className="font-display font-bold text-base text-foreground">
+                        Depot QR Code
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Customers scan to join waitlist
+                      </p>
                     </div>
                   </div>
-                  <ChevronDown className={cn("size-5 text-muted-foreground transition-transform duration-300", qrOpen && "rotate-180")} />
+                  <ChevronDown
+                    className={cn(
+                      "size-5 text-muted-foreground transition-transform duration-300",
+                      qrOpen && "rotate-180",
+                    )}
+                  />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -906,7 +1316,9 @@ function DealerProfile() {
                   <QrCode className="size-4.5" />
                 </span>
                 <div>
-                  <h2 className="font-display font-bold text-base text-foreground">Depot QR Code</h2>
+                  <h2 className="font-display font-bold text-base text-foreground">
+                    Depot QR Code
+                  </h2>
                   <p className="text-xs text-muted-foreground">Customers scan to join queue</p>
                 </div>
               </div>
@@ -915,6 +1327,15 @@ function DealerProfile() {
           )}
         </aside>
       </div>
+
+      <Button
+        variant="outline"
+        size="lg"
+        onClick={() => void handleSignOut()}
+        className="h-12 w-full rounded-2xl border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 sm:hidden"
+      >
+        <LogOut className="size-4" /> Sign out
+      </Button>
     </div>
   );
 }
@@ -995,6 +1416,9 @@ function AdminProfile() {
   const navigate = useNavigate();
   const opts = sessionToken ? { sessionToken } : "skip";
   const stats = useQuery(api.admin.dashboardStats, opts);
+  const isMobile = useIsMobile();
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [overviewOpen, setOverviewOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -1005,7 +1429,7 @@ function AdminProfile() {
     <div className="space-y-4 sm:space-y-6 pb-12">
       {/* Hero Section */}
       <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
-        <div className="relative h-24 sm:h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-b border-border/50">
+        <div className="relative hidden h-24 sm:block sm:h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-b border-border/50">
           <Button
             variant="ghost"
             size="sm"
@@ -1020,10 +1444,10 @@ function AdminProfile() {
         <div className="px-4 sm:px-6 pb-5 sm:pb-6">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex items-end gap-3.5 sm:gap-4 min-w-0">
-              <div className="-mt-12 sm:-mt-10 grid size-20 sm:size-24 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl sm:text-3xl font-extrabold text-primary-foreground shadow-md ring-4 ring-card">
+              <div className="grid size-20 sm:size-24 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl sm:text-3xl font-extrabold text-primary-foreground shadow-md ring-4 ring-card sm:-mt-10">
                 <ShieldCheck className="size-10 text-primary-foreground" />
               </div>
-              <div className="min-w-0 flex-1 pb-1">
+              <div className="min-w-0 flex-1 pt-4 pb-1 sm:pt-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary">
                     <ShieldCheck className="size-3" /> System Administrator
@@ -1034,7 +1458,8 @@ function AdminProfile() {
                 </h1>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground">
                   <span className="flex items-center gap-1 font-medium text-foreground/80">
-                    <Mail className="size-3.5 shrink-0 text-primary" /> {user?.email ?? "admin@YoGas.app"}
+                    <Mail className="size-3.5 shrink-0 text-primary" />{" "}
+                    {user?.email ?? "admin@YoGas.app"}
                   </span>
                 </p>
               </div>
@@ -1055,63 +1480,131 @@ function AdminProfile() {
       {/* Admin Account & Platform Metrics */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-4 sm:space-y-6">
-          <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft">
-            <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                  <ShieldCheck className="size-4.5" />
-                </span>
-                <div>
-                  <h2 className="font-display font-bold text-base text-foreground">Admin Credentials</h2>
-                  <p className="text-xs text-muted-foreground">Platform governance account</p>
-                </div>
+          <Collapsible
+            open={isMobile ? adminOpen : true}
+            onOpenChange={setAdminOpen}
+            className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft"
+          >
+            <div className="flex items-center justify-between border-b border-border/60 bg-secondary/30">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                      <ShieldCheck className="size-4.5" />
+                    </span>
+                    <div>
+                      <h2 className="font-display font-bold text-base text-foreground">
+                        Admin Credentials
+                      </h2>
+                      <p className="text-xs text-muted-foreground">Platform governance account</p>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "size-5 shrink-0 text-muted-foreground transition-transform duration-300 sm:hidden",
+                      adminOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent>
+              <div className="divide-y divide-border/40">
+                <MobileDetailRow
+                  icon={Mail}
+                  label="Account Email"
+                  value={user?.email ?? "admin@YoGas.app"}
+                />
+                <MobileDetailRow icon={ShieldCheck} label="Role" value="System Administrator" />
+                <MobileDetailRow
+                  icon={BadgeCheck}
+                  label="Permissions"
+                  value="Full Platform Access"
+                />
+                <MobileDetailRow
+                  icon={FileText}
+                  label="Authentication"
+                  value="PBKDF2 SHA-256 Verified"
+                />
               </div>
-            </div>
-            <div className="divide-y divide-border/40">
-              <MobileDetailRow icon={Mail} label="Account Email" value={user?.email ?? "admin@YoGas.app"} />
-              <MobileDetailRow icon={ShieldCheck} label="Role" value="System Administrator" />
-              <MobileDetailRow icon={BadgeCheck} label="Permissions" value="Full Platform Access" />
-              <MobileDetailRow icon={FileText} label="Authentication" value="PBKDF2 SHA-256 Verified" />
-            </div>
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        <aside className="h-fit overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft p-5 space-y-4">
-          <div className="flex items-center gap-3 pb-3 border-b border-border/60">
-            <span className="grid size-9 place-items-center rounded-2xl bg-primary/10 text-primary">
-              <Store className="size-4.5" />
-            </span>
-            <div>
-              <h2 className="font-bold text-base text-foreground">Platform Overview</h2>
-              <p className="text-xs text-muted-foreground">Live platform metrics</p>
-            </div>
-          </div>
+        <Collapsible
+          open={isMobile ? overviewOpen : true}
+          onOpenChange={setOverviewOpen}
+          className="h-fit overflow-hidden rounded-3xl border border-border/80 bg-card shadow-soft p-5 space-y-4"
+        >
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid size-9 place-items-center rounded-2xl bg-primary/10 text-primary">
+                  <Store className="size-4.5" />
+                </span>
+                <div>
+                  <h2 className="font-bold text-base text-foreground">Platform Overview</h2>
+                  <p className="text-xs text-muted-foreground">Live platform metrics</p>
+                </div>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "size-5 shrink-0 text-muted-foreground transition-transform duration-300 sm:hidden",
+                  overviewOpen && "rotate-180",
+                )}
+              />
+            </button>
+          </CollapsibleTrigger>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="rounded-2xl bg-muted/40 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Consumers</p>
-              <p className="font-display text-xl font-bold text-foreground mt-0.5">{stats?.users ?? "-"}</p>
+          <CollapsibleContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-2xl bg-muted/40 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Consumers</p>
+                <p className="font-display text-xl font-bold text-foreground mt-0.5">
+                  {stats?.users ?? "-"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-muted/40 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Dealers</p>
+                <p className="font-display text-xl font-bold text-foreground mt-0.5">
+                  {stats?.dealers ?? "-"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-muted/40 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Waitlist</p>
+                <p className="font-display text-xl font-bold text-foreground mt-0.5">
+                  {stats?.entries ?? "-"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-amber-500/10 p-3 text-center">
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Pending</p>
+                <p className="font-display text-xl font-bold text-amber-600 mt-0.5">
+                  {stats?.pendingDealers ?? "-"}
+                </p>
+              </div>
             </div>
-            <div className="rounded-2xl bg-muted/40 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Dealers</p>
-              <p className="font-display text-xl font-bold text-foreground mt-0.5">{stats?.dealers ?? "-"}</p>
-            </div>
-            <div className="rounded-2xl bg-muted/40 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Waitlist</p>
-              <p className="font-display text-xl font-bold text-foreground mt-0.5">{stats?.entries ?? "-"}</p>
-            </div>
-            <div className="rounded-2xl bg-amber-500/10 p-3 text-center">
-              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Pending</p>
-              <p className="font-display text-xl font-bold text-amber-600 mt-0.5">{stats?.pendingDealers ?? "-"}</p>
-            </div>
-          </div>
 
-          <Button asChild className="w-full h-11 rounded-xl font-semibold mt-2">
-            <Link to="/dashboard">Go to Full Dashboard</Link>
-          </Button>
-        </aside>
+            <Button asChild className="w-full h-11 rounded-xl font-semibold mt-2">
+              <Link to="/dashboard">Go to Full Dashboard</Link>
+            </Button>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
+
+      <Button
+        variant="outline"
+        size="lg"
+        onClick={() => void handleSignOut()}
+        className="h-12 w-full rounded-2xl border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 sm:hidden"
+      >
+        <LogOut className="size-4" /> Sign out
+      </Button>
     </div>
   );
 }
-

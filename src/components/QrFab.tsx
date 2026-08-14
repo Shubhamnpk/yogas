@@ -186,9 +186,9 @@ export function ScanFabTrigger({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Scan QR code"
-      className="grid size-14 place-items-center rounded-full bg-flame text-primary-foreground shadow-lift transition-transform hover:scale-105 active:scale-95"
+      className="grid size-16 place-items-center rounded-full bg-flame text-primary-foreground shadow-lift transition-transform hover:scale-105 active:scale-95"
     >
-      <ScanLine className="size-6" />
+      <ScanLine className="size-7" />
     </button>
   );
 }

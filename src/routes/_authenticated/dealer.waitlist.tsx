@@ -77,9 +77,12 @@ function DealerWaitlistPage() {
   const cancelEntry = useMutation(api.waitlist.cancelEntry);
   const bulkAllot = useMutation(api.waitlist.bulkAllot);
   const autoAllot = useMutation(api.waitlist.autoAllotByStock);
-  const counts =
-    useQuery(api.waitlist.dealerCounts, sessionToken ? { sessionToken } : "skip") ??
-    { waiting: 0, allotted: 0, history: 0, cancelled: 0 };
+  const counts = useQuery(api.waitlist.dealerCounts, sessionToken ? { sessionToken } : "skip") ?? {
+    waiting: 0,
+    allotted: 0,
+    history: 0,
+    cancelled: 0,
+  };
   const [tab, setTab] = useState<Tab>("waiting");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"rank" | "newest" | "oldest">("rank");
@@ -89,14 +92,9 @@ function DealerWaitlistPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [autoBusy, setAutoBusy] = useState(false);
 
-  const queueArgs = useMemo<
-    | { sessionToken: string; status?: Exclude<Tab, "all"> }
-    | "skip"
-  >(() => {
+  const queueArgs = useMemo<{ sessionToken: string; status?: Exclude<Tab, "all"> } | "skip">(() => {
     if (!sessionToken) return "skip";
-    return tab === "all"
-      ? { sessionToken }
-      : { sessionToken, status: tab as Exclude<Tab, "all"> };
+    return tab === "all" ? { sessionToken } : { sessionToken, status: tab as Exclude<Tab, "all"> };
   }, [sessionToken, tab]);
 
   const queue = usePaginatedQuery(api.waitlist.dealerQueue, queueArgs, {
@@ -197,7 +195,10 @@ function DealerWaitlistPage() {
     if (!user || selectedWaiting.length === 0) return;
     setBulkBusy(true);
     try {
-      const result = await bulkAllot({ ...sessionArgs(sessionToken), entryIds: selectedWaiting.map((r) => r._id) });
+      const result = await bulkAllot({
+        ...sessionArgs(sessionToken),
+        entryIds: selectedWaiting.map((r) => r._id),
+      });
       setSelected(new Set());
       toast.success(`Allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"}.`);
       if (result.skipped > 0) {
@@ -275,11 +276,13 @@ function DealerWaitlistPage() {
 
       {tabCounts.waiting > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-3">
-          <CheckCheck className="size-4 text-success" />
-          <p className="text-sm">
-            <span className="font-semibold">{tabCounts.waiting}</span> waiting ·{" "}
-            <span className="font-semibold">{stock}</span> in stock - allot in queue order to match
-            your stock.
+          <p className="flex items-center gap-2 text-sm">
+            <CheckCheck className="size-4 shrink-0 text-success" />
+            <span>
+              <span className="font-semibold">{tabCounts.waiting}</span> waiting ·{" "}
+              <span className="font-semibold">{stock}</span> in stock - allot in queue order to
+              match your stock.
+            </span>
           </p>
           <div className="ml-auto">
             <Button

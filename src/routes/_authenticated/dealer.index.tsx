@@ -57,10 +57,12 @@ type QueueEntry = Doc<"waitlistEntries"> & {
 
 function DealerHome() {
   const { dealer, user, sessionToken } = useAuth();
-  const counts = useQuery(
-    api.waitlist.dealerCounts,
-    sessionToken ? { sessionToken } : "skip",
-  ) ?? { waiting: 0, allotted: 0, history: 0, cancelled: 0 };
+  const counts = useQuery(api.waitlist.dealerCounts, sessionToken ? { sessionToken } : "skip") ?? {
+    waiting: 0,
+    allotted: 0,
+    history: 0,
+    cancelled: 0,
+  };
   const queue = useQuery(
     api.waitlist.dealerQueue,
     sessionToken
@@ -105,10 +107,12 @@ function DealerHome() {
   return (
     <div className="space-y-6">
       {counts.waiting > dealer.stock ? (
-        <div className="flex flex-col items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 sm:flex-row sm:items-start">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" />
+        <div className="flex flex-col gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 sm:flex-row sm:items-center">
           <div>
-            <p className="font-semibold text-warning-foreground">Stock can't cover the queue</p>
+            <p className="flex items-center gap-2 font-semibold text-warning-foreground">
+              <AlertTriangle className="size-5 shrink-0 text-warning" />
+              Stock can't cover the queue
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {counts.waiting} waiting but only {dealer.stock} cylinders in stock - allot as
               cylinders arrive, or bump stock from the depot page before handover stalls.
@@ -120,7 +124,7 @@ function DealerHome() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <StatCard label="Cylinders in stock" value={dealer.stock} icon={PackageCheck} />
         <StatCard label="Waiting" value={counts.waiting} icon={Users} />
         <StatCard label="Ready to collect" value={counts.allotted} icon={Check} />
@@ -345,15 +349,23 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  icon: typeof Users;
+  icon?: typeof Users;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
-        <Icon className="size-4" />
-      </span>
-      <p className="mt-2 font-display text-2xl font-bold">{value}</p>
-      <p className="text-sm text-muted-foreground">{label}</p>
+    <div className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft transition-all sm:p-5">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        {Icon ? (
+          <span className="grid size-7 place-items-center rounded-xl bg-primary/10 text-xs text-primary">
+            <Icon className="size-3.5" />
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 font-display text-2xl font-extrabold text-foreground sm:text-3xl">
+        {value}
+      </p>
     </div>
   );
 }

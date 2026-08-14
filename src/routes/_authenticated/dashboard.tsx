@@ -152,20 +152,22 @@ function ConsumerDashboard() {
                   title: "Active requests",
                   value: String(stats.active),
                   sub: `${stats.waiting} waiting · ${stats.allotted} allotted`,
+                  icon: Ticket,
                 },
                 {
                   id: "collected",
                   title: "Cylinders collected",
                   value: String(purchase?.totalQuantity ?? 0),
+                  icon: PackageCheck,
                 },
               ]}
             />
           </div>
           <div className="hidden grid-cols-4 gap-3 lg:grid">
-            <StatCard label="Active requests" value={stats.active} />
-            <StatCard label="Waiting" value={stats.waiting} />
-            <StatCard label="Allotted" value={stats.allotted} />
-            <StatCard label="Cylinders collected" value={purchase?.totalQuantity ?? 0} />
+            <StatCard label="Active requests" value={stats.active} icon={Ticket} />
+            <StatCard label="Waiting" value={stats.waiting} icon={Users} />
+            <StatCard label="Allotted" value={stats.allotted} icon={Check} />
+            <StatCard label="Cylinders collected" value={purchase?.totalQuantity ?? 0} icon={PackageCheck} />
           </div>
         </>
       )}

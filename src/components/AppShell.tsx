@@ -112,7 +112,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className="hidden items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent md:flex"
                 >
                   <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary font-semibold">
-                    {role === "admin" ? <ShieldCheck className="size-4 text-primary" /> : <UserRound className="size-4" />}
+                    {role === "admin" ? (
+                      <ShieldCheck className="size-4 text-primary" />
+                    ) : (
+                      <UserRound className="size-4" />
+                    )}
                   </span>
                   <span className="hidden text-right sm:block">
                     <span className="block max-w-40 truncate text-sm font-semibold leading-tight">
@@ -147,7 +151,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
-        <div className={cn("mx-auto grid max-w-lg items-end", role === "admin" ? "grid-cols-3" : "grid-cols-5")}>
+        <div
+          className={cn(
+            "mx-auto grid max-w-lg items-end",
+            role === "admin" ? "grid-cols-3" : "grid-cols-5",
+          )}
+        >
           {nav.slice(0, 2).map((item) => {
             const Icon = item.icon;
             const active = pathname === item.to;
@@ -168,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {role !== "admin" ? (
             <>
-              <div className="-mt-6 flex justify-center">
+              <div className="-mt-6 flex justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <ScanFabTrigger onClick={() => setScanOpen(true)} />
               </div>
 
