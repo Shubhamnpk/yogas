@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import QrScanner from "@/components/QrScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/dealer/scan")({
 type Overview = {
   consumer: {
     fullName: string | undefined;
-    citizenshipNo: string | undefined;
+    citizenshipMasked: string | null;
     address: string | undefined;
     phone: string | undefined;
     totalPurchasedQuantity: number;
@@ -67,7 +67,7 @@ type Overview = {
     consumer:
       | {
           fullName: string | undefined;
-          citizenshipNo: string | undefined;
+          citizenshipMasked: string | null;
           address: string | undefined;
           phone: string | undefined;
           totalPurchasedQuantity: number;
@@ -111,9 +111,7 @@ function DealerScan() {
   const overview = useQuery(
     api.waitlist.consumerOverviewForDealer,
     dealer && targetAccountId
-      ? sessionToken
-        ? { sessionToken, dealerId: dealer.id, accountId: targetAccountId as Id<"accounts"> }
-        : { dealerId: dealer.id, accountId: targetAccountId as Id<"accounts"> }
+      ? { ...sessionArgs(sessionToken), dealerId: dealer.id, consumerAccountId: targetAccountId as Id<"accounts"> }
       : "skip",
   ) as Overview | null | undefined;
 
@@ -165,11 +163,7 @@ function DealerScan() {
     setBusy(true);
     try {
       if (fn === "allot") {
-        await allotEntry(
-          sessionToken
-            ? { sessionToken, entryId: overview.activeEntry._id }
-            : { ownerAccountId: user.accountId, entryId: overview.activeEntry._id },
-        );
+        await allotEntry({ ...sessionArgs(sessionToken), entryId: overview.activeEntry._id });
       } else {
         if (
           !window.confirm(
@@ -177,11 +171,7 @@ function DealerScan() {
           )
         )
           return;
-        await collectEntry(
-          sessionToken
-            ? { sessionToken, entryId: overview.activeEntry._id }
-            : { ownerAccountId: user.accountId, entryId: overview.activeEntry._id },
-        );
+        await collectEntry({ ...sessionArgs(sessionToken), entryId: overview.activeEntry._id });
       }
       toast.success(
         fn === "allot"
@@ -210,14 +200,10 @@ function DealerScan() {
     if (!targetAccountId || !user) return;
     setAddBusy(true);
     try {
-      await addConsumerToQueue(
-        sessionToken
-          ? { sessionToken, consumerAccountId: targetAccountId as Id<"accounts"> }
-          : {
-              ownerAccountId: user.accountId,
-              consumerAccountId: targetAccountId as Id<"accounts">,
-            },
-      );
+      await addConsumerToQueue({
+        ...sessionArgs(sessionToken),
+        consumerAccountId: targetAccountId as Id<"accounts">,
+      });
       toast.success("Added to your waitlist - they're now in the queue");
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
@@ -380,7 +366,7 @@ function DealerScan() {
           </div>
 
           <div className="grid gap-px bg-border sm:grid-cols-2">
-            <InfoTile label="Citizenship" value={maskCitizenship(consumer?.citizenshipNo)} />
+            <InfoTile label="Citizenship" value={consumer?.citizenshipMasked ?? "—"} />
             <InfoTile label="Address" value={consumer?.address ?? "-"} />
             <InfoTile
               label="Total purchased"

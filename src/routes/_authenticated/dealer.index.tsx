@@ -17,7 +17,7 @@ import {
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CancelRequestModal } from "@/components/CancelRequestModal";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ type QueueEntry = Doc<"waitlistEntries"> & {
   position?: number;
   consumer: {
     fullName: string | undefined;
-    citizenshipNo: string | undefined;
+    citizenshipMasked: string | null;
     address: string | undefined;
     phone: string | undefined;
     totalPurchasedQuantity: number;
@@ -55,23 +55,18 @@ type QueueEntry = Doc<"waitlistEntries"> & {
   } | null;
 };
 
-type QueueData = {
-  waiting: QueueEntry[];
-  allotted: QueueEntry[];
-  history: QueueEntry[];
-  cancelled: QueueEntry[];
-  hasMoreWaiting: boolean;
-  hasMoreAllotted: boolean;
-  hasMoreHistory: boolean;
-  hasMoreCancelled: boolean;
-};
-
 function DealerHome() {
   const { dealer, user, sessionToken } = useAuth();
-  const rows = useQuery(
+  const counts = useQuery(
+    api.waitlist.dealerCounts,
+    sessionToken ? { sessionToken } : "skip",
+  ) ?? { waiting: 0, allotted: 0, history: 0, cancelled: 0 };
+  const queue = useQuery(
     api.waitlist.dealerQueue,
-    sessionToken ? { sessionToken, limit: 120 } : "skip",
-  ) as QueueData | undefined;
+    sessionToken
+      ? { sessionToken, status: "waiting", paginationOpts: { numItems: 100, cursor: null } }
+      : "skip",
+  );
   const allotEntry = useMutation(api.waitlist.allotEntry);
   const cancelEntry = useMutation(api.waitlist.cancelEntry);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -79,23 +74,13 @@ function DealerHome() {
 
   if (!dealer || !user) return null;
 
-  const waiting = rows?.waiting ?? [];
-  const covered = dealer.stock >= waiting.length;
-  const counts = {
-    waiting: waiting.length,
-    allotted: rows?.allotted.length ?? 0,
-    history: rows?.history.length ?? 0,
-    cancelled: rows?.cancelled.length ?? 0,
-  };
+  const waiting: QueueEntry[] = queue?.page ?? [];
+  const covered = dealer.stock >= counts.waiting;
 
   const allot = async (id: Id<"waitlistEntries">) => {
     setBusyId(id);
     try {
-      await allotEntry(
-        sessionToken
-          ? { sessionToken, entryId: id }
-          : { ownerAccountId: user.accountId, entryId: id },
-      );
+      await allotEntry({ ...sessionArgs(sessionToken), entryId: id });
       toast.success("Cylinder allotted");
     } catch (error) {
       toast.error(friendlyError(error, "Could not update request"));
@@ -107,11 +92,7 @@ function DealerHome() {
   const cancel = async (id: Id<"waitlistEntries">, reason: string) => {
     setBusyId(id);
     try {
-      await cancelEntry(
-        sessionToken
-          ? { sessionToken, entryId: id, reason }
-          : { requesterAccountId: user.accountId, entryId: id, reason },
-      );
+      await cancelEntry({ ...sessionArgs(sessionToken), entryId: id, reason });
       toast.success("Request cancelled");
       setCancelTarget(null);
     } catch (error) {
@@ -164,7 +145,7 @@ function DealerHome() {
             ) : null}
           </div>
 
-          {rows === undefined ? (
+          {queue === undefined ? (
             <div className="grid h-24 place-items-center">
               <Loader2 className="size-5 animate-spin text-primary" />
             </div>

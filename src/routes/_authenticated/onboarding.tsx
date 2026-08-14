@@ -5,7 +5,7 @@ import { Loader2, Store, User } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
@@ -87,7 +87,7 @@ function Onboarding() {
   const saveRole = async (value: "consumer" | "dealer") => {
     if (!user) return;
     setPickedRole(value);
-    await updateRole({ sessionToken: sessionToken ?? undefined, role: value });
+    await updateRole({ ...sessionArgs(sessionToken), role: value });
     await refresh();
   };
 
@@ -103,12 +103,12 @@ function Onboarding() {
     setBusy(true);
     try {
       await updateProfile({
-        sessionToken: sessionToken ?? undefined,
+        ...sessionArgs(sessionToken),
         fullName: parsed.data.full_name,
         citizenshipNo: parsed.data.citizenship_no,
         address: parsed.data.address,
         district: parsed.data.district,
-        phone: parsed.data.phone || undefined,
+        ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
       toast.success("Profile saved");
       await refresh();
@@ -141,18 +141,18 @@ function Onboarding() {
     setBusy(true);
     try {
       await updateProfile({
-        sessionToken: sessionToken ?? undefined,
+        ...sessionArgs(sessionToken),
         fullName: c.full_name.trim(),
         district: parsed.data.district,
-        phone: parsed.data.phone || undefined,
+        ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
       await upsertDealer({
-        sessionToken: sessionToken ?? undefined,
+        ...sessionArgs(sessionToken),
         businessName: parsed.data.business_name,
-        licenseNo: parsed.data.license_no || undefined,
+        ...(parsed.data.license_no ? { licenseNo: parsed.data.license_no } : {}),
         district: parsed.data.district,
         address: parsed.data.address,
-        phone: parsed.data.phone || undefined,
+        ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
       toast.success(dealer ? "Depot updated" : "Depot registered");
       await refresh();

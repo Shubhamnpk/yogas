@@ -6,7 +6,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/dealers")({
     ],
   }),
   validateSearch: (search: Record<string, unknown>): { depot?: string } =>
-    typeof search.depot === "string" ? { depot: search.depot } : {},
+    typeof search["depot"] === "string" ? { depot: search["depot"] } : {},
   component: DealersPage,
 });
 
@@ -66,8 +66,8 @@ function DealersPage() {
     district === null
       ? "skip"
       : {
-          district: district && district !== "all" ? district : undefined,
-          search: query.trim() || undefined,
+          ...(district && district !== "all" ? { district } : {}),
+          ...(query.trim() ? { search: query.trim() } : {}),
         },
   );
   const activeRequests = useQuery(
@@ -111,10 +111,10 @@ function DealersPage() {
     try {
       await joinDepot({
         dealerId: active._id as Id<"dealers">,
-        sessionToken: sessionToken ?? undefined,
+        ...sessionArgs(sessionToken),
         quantity: parsed.data.quantity,
         cylinderSize: CYLINDER_SIZE,
-        note: parsed.data.note || undefined,
+        ...(parsed.data.note ? { note: parsed.data.note } : {}),
       });
       setActive(null);
       setForm({ quantity: "1", note: "" });

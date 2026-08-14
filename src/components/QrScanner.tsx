@@ -91,7 +91,9 @@ export default function QrScanner({ onResult, paused }: Props) {
       }
     };
     const observer = containerEl ? new MutationObserver(sizeVideoToFill) : null;
-    observer?.observe(containerEl, { childList: true, subtree: true });
+    if (containerEl && observer) {
+      observer.observe(containerEl, { childList: true, subtree: true });
+    }
     window.addEventListener("resize", sizeVideoToFill);
 
     const stopScanner = async (scanner: Html5Qrcode) => {

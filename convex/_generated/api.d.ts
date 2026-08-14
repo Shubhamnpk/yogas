@@ -10,6 +10,9 @@
 
 import type * as admin from "../admin.js";
 import type * as app from "../app.js";
+import type * as auth from "../auth.js";
+import type * as cleanup from "../cleanup.js";
+import type * as crons from "../crons.js";
 import type * as notifications from "../notifications.js";
 import type * as waitlist from "../waitlist.js";
 
@@ -22,6 +25,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   app: typeof app;
+  auth: typeof auth;
+  cleanup: typeof cleanup;
+  crons: typeof crons;
   notifications: typeof notifications;
   waitlist: typeof waitlist;
 }>;

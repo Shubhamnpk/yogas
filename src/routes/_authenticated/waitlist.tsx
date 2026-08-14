@@ -5,7 +5,7 @@ import { ChevronRight, Loader2, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RequestDetails, type RequestRow } from "@/components/RequestDetails";
@@ -66,9 +66,7 @@ function WaitlistPage() {
     if (!user) return;
     setBusyId(id);
     try {
-      await confirmCollection(
-        sessionToken ? { sessionToken, entryId: id } : { accountId: user.accountId, entryId: id },
-      );
+      await confirmCollection({ ...sessionArgs(sessionToken), entryId: id });
       toast.success("Collection confirmed - cylinder handed over");
       setSelected(null);
     } catch (error) {

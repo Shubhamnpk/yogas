@@ -3,22 +3,29 @@ import { useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import {
   Bell,
+  Boxes,
+  ChevronDown,
   ClipboardList,
   Flame,
   LayoutGrid,
   LogOut,
+  ScanLine,
   ShieldCheck,
   Store,
-  Boxes,
   UserRound,
-  ScanLine,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "../../convex/_generated/api";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { QrFab, ScanFabTrigger } from "@/components/QrFab";
 import { Logo } from "@/components/Logo";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = { to: string; label: string; icon: typeof Flame };
 
@@ -34,7 +41,10 @@ const DEALER_NAV: NavItem[] = [
   { to: "/dealer/stock", label: "Stock", icon: Boxes },
 ];
 
-const ADMIN_NAV: NavItem[] = [{ to: "/dashboard", label: "Home", icon: LayoutGrid }];
+const ADMIN_NAV: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+  { to: "/notifications", label: "Alerts", icon: Bell },
+];
 
 const PROFILE_NAV: NavItem = { to: "/profile", label: "Profile", icon: UserRound };
 
@@ -72,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav className="ml-6 hidden items-center gap-1 md:flex">
             {nav.map((item) => (
               <Link
-                key={item.to}
+                key={item.to + item.label}
                 to={item.to}
                 className={cn(
                   "rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
@@ -95,23 +105,41 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-primary ring-2 ring-background" />
               ) : null}
             </Link>
-            <Link
-              to="/profile"
-              className="hidden items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent md:flex"
-            >
-              <span className="grid size-8 place-items-center rounded-full bg-secondary text-secondary-foreground">
-                <UserRound className="size-4" />
-              </span>
-              <span className="hidden text-right sm:block">
-                <span className="block text-sm font-semibold leading-tight">{title}</span>
-                <span className="block text-xs capitalize text-muted-foreground">
-                  {role ?? "member"}
-                </span>
-              </span>
-            </Link>
-            <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sign out">
-              <LogOut className="size-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="hidden items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent md:flex"
+                >
+                  <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary font-semibold">
+                    {role === "admin" ? <ShieldCheck className="size-4 text-primary" /> : <UserRound className="size-4" />}
+                  </span>
+                  <span className="hidden text-right sm:block">
+                    <span className="block max-w-40 truncate text-sm font-semibold leading-tight">
+                      {title}
+                    </span>
+                    <span className="block text-xs capitalize text-muted-foreground">
+                      {role ?? "member"}
+                    </span>
+                  </span>
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <UserRound className="size-4" /> Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => void handleSignOut()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <LogOut className="size-4" /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -119,13 +147,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5 items-end">
+        <div className={cn("mx-auto grid max-w-lg items-end", role === "admin" ? "grid-cols-3" : "grid-cols-5")}>
           {nav.slice(0, 2).map((item) => {
             const Icon = item.icon;
             const active = pathname === item.to;
             return (
               <Link
-                key={item.to}
+                key={item.to + item.label}
                 to={item.to}
                 className={cn(
                   "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
@@ -139,30 +167,30 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
 
           {role !== "admin" ? (
-            <div className="-mt-6 flex justify-center">
-              <ScanFabTrigger onClick={() => setScanOpen(true)} />
-            </div>
-          ) : (
-            <span />
-          )}
+            <>
+              <div className="-mt-6 flex justify-center">
+                <ScanFabTrigger onClick={() => setScanOpen(true)} />
+              </div>
 
-          {nav.slice(2).map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.to;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
-                  active ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                <Icon className="size-5" />
-                {item.label}
-              </Link>
-            );
-          })}
+              {nav.slice(2).map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.to;
+                return (
+                  <Link
+                    key={item.to + item.label}
+                    to={item.to}
+                    className={cn(
+                      "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
+                      active ? "text-primary" : "text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="size-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          ) : null}
 
           <Link
             to={PROFILE_NAV.to}

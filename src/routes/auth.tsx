@@ -5,7 +5,7 @@ import { Loader2, ShieldCheck, Store, User } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getDeviceId } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +71,7 @@ function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    const deviceId = getDeviceId();
     try {
       if (mode === "signup") {
         const parsed = signUpSchema.safeParse(form);
@@ -78,20 +79,30 @@ function AuthPage() {
           toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
           return;
         }
-        const sessionToken = await signUp({
+        const result = await signUp({
           email: parsed.data.email,
           password: parsed.data.password,
           role,
           fullName: parsed.data.fullName,
+          ...(deviceId ? { deviceId } : {}),
         });
-        setSessionToken(sessionToken);
+        if (!result.ok) {
+          toast.error(result.message);
+          return;
+        }
+        setSessionToken(result.sessionToken);
         toast.success("Account created. Let's finish your details.");
       } else {
-        const sessionToken = await signIn({
+        const result = await signIn({
           email: form.email.trim(),
           password: form.password,
+          ...(deviceId ? { deviceId } : {}),
         });
-        setSessionToken(sessionToken);
+        if (!result.ok) {
+          toast.error(result.message);
+          return;
+        }
+        setSessionToken(result.sessionToken);
         toast.success("Welcome back");
       }
     } catch (err) {
@@ -103,13 +114,22 @@ function AuthPage() {
 
   const demoLogin = async (kind: "consumer" | "dealer" | "admin") => {
     setBusy(true);
+    const deviceId = getDeviceId();
     try {
       if (kind === "admin") {
         await ensureAdminAccount({});
       }
       const creds = DEMO_ACCOUNTS[kind];
-      const sessionToken = await signIn({ email: creds.email, password: creds.password });
-      setSessionToken(sessionToken);
+      const result = await signIn({
+        email: creds.email,
+        password: creds.password,
+        ...(deviceId ? { deviceId } : {}),
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setSessionToken(result.sessionToken);
       toast.success(`Signed in as the demo ${kind}`);
     } catch {
       toast.error("Demo account unavailable right now");

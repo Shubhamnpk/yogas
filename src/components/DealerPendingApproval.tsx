@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { Clock3, Hourglass, Loader2, Store, XCircle } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Dealer, Profile } from "@/lib/auth";
@@ -29,9 +29,10 @@ export function DealerPendingApproval({
   profile: Profile | null;
 }) {
   const { sessionToken, signOut } = useAuth();
-  const logs = useQuery(
+  const logs = usePaginatedQuery(
     api.admin.dealerActivityLogs,
     sessionToken ? { sessionToken } : "skip",
+    { initialNumItems: 50 },
   );
   const copy = statusCopy(dealer.approval_status);
   const Icon = copy.icon;
@@ -67,28 +68,42 @@ export function DealerPendingApproval({
         <p className="mt-1 text-sm text-muted-foreground">
           {profile?.full_name ?? "Your account"} · {dealer.business_name}
         </p>
-        {logs === undefined ? (
+        {logs.status === "LoadingFirstPage" ? (
           <div className="grid h-32 place-items-center">
             <Loader2 className="size-5 animate-spin text-primary" />
           </div>
-        ) : logs.length === 0 ? (
+        ) : logs.results.length === 0 ? (
           <p className="mt-4 rounded-xl border border-dashed border-border bg-background px-4 py-8 text-center text-sm text-muted-foreground">
             No activity logged yet.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-border">
-            {logs.map((log) => (
-              <li key={log.id} className="flex items-start justify-between gap-4 py-3">
-                <div>
-                  <p className="font-mono text-xs text-secondary-foreground">{log.action}</p>
-                  {log.details ? <p className="text-xs text-muted-foreground">{log.details}</p> : null}
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDateTime(log.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-4 divide-y divide-border">
+              {logs.results.map((log) => (
+                <li key={log.id} className="flex items-start justify-between gap-4 py-3">
+                  <div>
+                    <p className="font-mono text-xs text-secondary-foreground">{log.action}</p>
+                    {log.details ? <p className="text-xs text-muted-foreground">{log.details}</p> : null}
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatDateTime(log.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {logs.status === "CanLoadMore" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 w-full"
+                onClick={() => logs.loadMore(50)}
+                disabled={logs.isLoading}
+              >
+                {logs.isLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+                Load more activity
+              </Button>
+            ) : null}
+          </>
         )}
       </div>
     </div>

@@ -1,23 +1,21 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
-import { Boxes, Loader2, Minus, Plus } from "lucide-react";
+import { Boxes, Loader2, Minus, Pencil, Plus, Store } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { friendlyError, stockLabel } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/dealer/stock")({
   head: () => ({
     meta: [
-      { title: "Stock & depot - YoGas" },
-      { name: "description", content: "Update your cylinder stock and depot details." },
-      { property: "og:title", content: "Stock & depot - YoGas" },
+      { title: "Stock & availability - YoGas" },
+      { name: "description", content: "Update your cylinder stock and depot availability." },
+      { property: "og:title", content: "Stock & availability - YoGas" },
       {
         property: "og:description",
         content: "Keep your stock accurate so the queue stays honest.",
@@ -30,34 +28,53 @@ export const Route = createFileRoute("/_authenticated/dealer/stock")({
 function DealerStock() {
   const { dealer, user, sessionToken } = useAuth();
   const updateDealerStock = useMutation(api.app.updateDealerStock);
-  const updateDealerDetails = useMutation(api.app.updateDealerDetails);
   const toggleDealerActive = useMutation(api.app.toggleDealerActive);
   const [stock, setStock] = useState(0);
+  const [stockInput, setStockInput] = useState("0");
   const [busy, setBusy] = useState(false);
-  const [details, setDetails] = useState({ business_name: "", address: "", phone: "" });
 
   useEffect(() => {
     if (dealer) {
       setStock(dealer.stock);
-      setDetails({
-        business_name: dealer.business_name,
-        address: dealer.address ?? "",
-        phone: dealer.phone ?? "",
-      });
+      setStockInput(String(dealer.stock));
     }
   }, [dealer]);
 
   if (!dealer || !user) return null;
   const s = stockLabel(stock);
 
+  const adjustStock = (delta: number) => {
+    const next = Math.max(0, stock + delta);
+    setStock(next);
+    setStockInput(String(next));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setStockInput(val);
+    if (val !== "" && !Number.isNaN(Number(val))) {
+      setStock(Math.max(0, Math.floor(Number(val))));
+    }
+  };
+
+  const handleInputBlur = () => {
+    if (stockInput === "" || Number.isNaN(Number(stockInput))) {
+      setStockInput(String(stock));
+    } else {
+      const parsed = Math.max(0, Math.floor(Number(stockInput)));
+      setStock(parsed);
+      setStockInput(String(parsed));
+    }
+  };
+
   const saveStock = async () => {
     setBusy(true);
     try {
       await updateDealerStock({
-        sessionToken: sessionToken ?? undefined,
+        ...sessionArgs(sessionToken),
         stock: Math.max(0, Math.floor(stock)),
       });
-      toast.success("Stock updated");
+      toast.success("Stock updated successfully");
     } catch (error) {
       toast.error(friendlyError(error, "Could not update stock"));
     } finally {
@@ -65,135 +82,130 @@ function DealerStock() {
     }
   };
 
-  const saveDetails = async () => {
-    if (details.business_name.trim().length < 2) {
-      toast.error("Enter a depot name");
-      return;
-    }
-    setBusy(true);
-    try {
-      await updateDealerDetails({
-        sessionToken: sessionToken ?? undefined,
-        businessName: details.business_name.trim(),
-        address: details.address.trim() || undefined,
-        phone: details.phone.trim() || undefined,
-      });
-      toast.success("Depot details saved");
-    } catch (error) {
-      toast.error(friendlyError(error, "Could not save depot details"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const toggleActive = async (value: boolean) => {
     try {
-      await toggleDealerActive({ sessionToken: sessionToken ?? undefined, isActive: value });
-      toast.success(value ? "Depot is now visible" : "Depot hidden from consumers");
+      await toggleDealerActive({ ...sessionArgs(sessionToken), isActive: value });
+      toast.success(value ? "Depot is now visible to consumers" : "Depot hidden from consumer search");
     } catch (error) {
       toast.error(friendlyError(error, "Could not update depot visibility"));
     }
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 pb-12">
       <div>
-        <h1 className="font-display text-3xl font-bold">Stock & depot</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold">Cylinder Stock & Availability</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Stock drops automatically each time you allot a cylinder.
+          Stock count decreases automatically when you hand over cylinders to customers.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
-        <div className="flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
-            <Boxes className="size-4" />
-          </span>
-          <div>
-            <h2 className="font-semibold">Cylinders available</h2>
-            <p
-              className={
-                s.tone === "success"
-                  ? "text-sm text-success"
-                  : s.tone === "warning"
-                    ? "text-sm text-warning"
-                    : "text-sm text-destructive"
-              }
-            >
-              {s.label}
-            </p>
+      {/* Stock Management Card */}
+      <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Boxes className="size-5" />
+            </span>
+            <div>
+              <h2 className="font-bold text-base">Cylinders Available</h2>
+              <p
+                className={
+                  s.tone === "success"
+                    ? "text-xs font-semibold text-success"
+                    : s.tone === "warning"
+                      ? "text-xs font-semibold text-warning"
+                      : "text-xs font-semibold text-destructive"
+                }
+              >
+                {s.label}
+              </p>
+            </div>
           </div>
+          <span className="font-mono text-xs font-bold text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
+            Depot: {dealer.code}
+          </span>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => setStock((v) => Math.max(0, v - 1))}>
-            <Minus className="size-4" />
+        <div className="flex items-center justify-center gap-4 py-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-14 w-14 rounded-2xl shrink-0"
+            onClick={() => adjustStock(-1)}
+          >
+            <Minus className="size-6 text-foreground" />
           </Button>
+
           <Input
             type="number"
             min={0}
-            value={stock}
-            onChange={(e) => setStock(Math.max(0, Number(e.target.value) || 0))}
-            className="h-16 w-32 text-center font-display text-3xl font-bold"
+            value={stockInput}
+            onFocus={() => {
+              if (stockInput === "0") setStockInput("");
+            }}
+            onBlur={handleInputBlur}
+            onChange={handleInputChange}
+            placeholder="0"
+            className="h-20 w-36 text-center font-display text-4xl font-extrabold rounded-2xl border-2 border-primary/20 focus:border-primary"
           />
-          <Button variant="outline" size="icon" onClick={() => setStock((v) => v + 1)}>
-            <Plus className="size-4" />
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-14 w-14 rounded-2xl shrink-0"
+            onClick={() => adjustStock(1)}
+          >
+            <Plus className="size-6 text-foreground" />
           </Button>
         </div>
 
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
           {[10, 25, 50, 100].map((n) => (
-            <Button key={n} variant="secondary" size="sm" onClick={() => setStock((v) => v + n)}>
-              +{n}
+            <Button
+              key={n}
+              variant="secondary"
+              size="sm"
+              className="rounded-xl px-4 font-semibold text-xs h-9"
+              onClick={() => adjustStock(n)}
+            >
+              +{n} Cylinders
             </Button>
           ))}
         </div>
 
-        <Button className="mt-6 w-full" onClick={() => void saveStock()} disabled={busy}>
-          {busy ? <Loader2 className="size-4 animate-spin" /> : null} Save stock
+        <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={() => void saveStock()} disabled={busy}>
+          {busy ? <Loader2 className="size-5 animate-spin mr-2" /> : null} Save Updated Stock
         </Button>
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
-        <h2 className="font-semibold">Depot details</h2>
-        <div className="space-y-2">
-          <Label>Depot name</Label>
-          <Input
-            value={details.business_name}
-            onChange={(e) => setDetails({ ...details, business_name: e.target.value })}
-            maxLength={90}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Address</Label>
-          <Textarea
-            value={details.address}
-            onChange={(e) => setDetails({ ...details, address: e.target.value })}
-            rows={2}
-            maxLength={160}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Contact phone</Label>
-          <Input
-            value={details.phone}
-            onChange={(e) => setDetails({ ...details, phone: e.target.value })}
-            maxLength={20}
-          />
-        </div>
-        <Button variant="outline" onClick={() => void saveDetails()} disabled={busy}>
-          Save details
-        </Button>
-      </div>
-
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-6 shadow-soft">
-        <div>
-          <h2 className="font-semibold">Accept new requests</h2>
-          <p className="text-sm text-muted-foreground">
-            Turn off to hide your depot from consumer search.
+      {/* Queue Visibility Toggle */}
+      <div className="flex items-center justify-between rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+        <div className="pr-4">
+          <h2 className="font-bold text-base text-foreground">Accept New Requests</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Turn off to temporarily pause your queue and hide your depot from consumer searches.
           </p>
         </div>
         <Switch checked={dealer.is_active} onCheckedChange={(v) => void toggleActive(v)} />
+      </div>
+
+      {/* Direct Link to Edit Business Profile */}
+      <div className="flex items-center justify-between rounded-3xl border border-border/80 bg-secondary/30 p-5">
+        <div className="flex items-center gap-3">
+          <span className="grid size-9 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Store className="size-4.5" />
+          </span>
+          <div>
+            <h3 className="font-semibold text-sm">Need to update depot address or phone?</h3>
+            <p className="text-xs text-muted-foreground">Manage your depot business details on your profile.</p>
+          </div>
+        </div>
+        <Button asChild variant="outline" size="sm" className="rounded-xl h-9 text-xs font-semibold shrink-0">
+          <Link to="/profile">
+            <Pencil className="size-3.5 mr-1 text-primary" /> Edit Profile
+          </Link>
+        </Button>
       </div>
     </div>
   );

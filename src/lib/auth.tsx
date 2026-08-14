@@ -1,10 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
 const SESSION_KEY = "YoGas_session_token";
+const DEVICE_KEY = "YoGas_device_id";
+
+export function getDeviceId() {
+  if (typeof window === "undefined") return undefined;
+  let id = window.localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    window.localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+export function sessionArgs(token: string | null | undefined) {
+  return token ? { sessionToken: token } : {};
+}
 
 export type AppRole = "consumer" | "dealer" | "admin";
 
@@ -67,7 +82,8 @@ function storedSessionToken() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionToken, setSessionTokenState] = useState<string | null>(() => storedSessionToken());
-  const viewer = useQuery(api.app.viewer, { sessionToken: sessionToken ?? undefined });
+  const viewer = useQuery(api.app.viewer, sessionArgs(sessionToken));
+  const serverSignOut = useMutation(api.app.signOut);
 
   useEffect(() => {
     if (viewer === null && sessionToken) {
@@ -84,9 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {}, []);
 
   const signOut = useCallback(async () => {
+    const token = window.localStorage.getItem(SESSION_KEY);
+    if (token) {
+      try {
+        await serverSignOut({ sessionToken: token });
+      } catch {
+        // best effort: the session may already be expired
+      }
+    }
     window.localStorage.removeItem(SESSION_KEY);
     setSessionTokenState(null);
-  }, []);
+  }, [serverSignOut]);
 
   const value = useMemo<AuthValue>(() => {
     const account = viewer?.account ?? null;

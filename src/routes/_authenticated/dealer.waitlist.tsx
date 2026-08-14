@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import {
   Check,
   CheckCheck,
@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionArgs } from "@/lib/auth";
 import { CancelRequestModal } from "@/components/CancelRequestModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +51,7 @@ type Row = Doc<"waitlistEntries"> & {
   position?: number;
   consumer: {
     fullName: string | undefined;
-    citizenshipNo: string | undefined;
+    citizenshipMasked: string | null;
     address: string | undefined;
     phone: string | undefined;
     totalPurchasedQuantity: number;
@@ -77,10 +77,9 @@ function DealerWaitlistPage() {
   const cancelEntry = useMutation(api.waitlist.cancelEntry);
   const bulkAllot = useMutation(api.waitlist.bulkAllot);
   const autoAllot = useMutation(api.waitlist.autoAllotByStock);
-  const queue = useQuery(
-    api.waitlist.dealerQueue,
-    sessionToken ? { sessionToken, limit: 300 } : "skip",
-  );
+  const counts =
+    useQuery(api.waitlist.dealerCounts, sessionToken ? { sessionToken } : "skip") ??
+    { waiting: 0, allotted: 0, history: 0, cancelled: 0 };
   const [tab, setTab] = useState<Tab>("waiting");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"rank" | "newest" | "oldest">("rank");
@@ -90,27 +89,28 @@ function DealerWaitlistPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [autoBusy, setAutoBusy] = useState(false);
 
-  const allRows = useMemo<Row[]>(() => {
-    if (!queue) return [];
-    return [
-      ...queue.waiting.map((e) => ({ ...e, status: "waiting" as const })),
-      ...queue.allotted.map((e) => ({ ...e, status: "allotted" as const })),
-      ...queue.history.map((e) => ({ ...e, status: "collected" as const })),
-      ...queue.cancelled.map((e) => ({ ...e, status: "cancelled" as const })),
-    ].sort((a, b) => b.createdAt - a.createdAt);
-  }, [queue]);
+  const queueArgs = useMemo<
+    | { sessionToken: string; status?: Exclude<Tab, "all"> }
+    | "skip"
+  >(() => {
+    if (!sessionToken) return "skip";
+    return tab === "all"
+      ? { sessionToken }
+      : { sessionToken, status: tab as Exclude<Tab, "all"> };
+  }, [sessionToken, tab]);
 
-  const counts = useMemo(() => {
-    const c: Record<Tab, number> = {
-      all: allRows.length,
-      waiting: 0,
-      allotted: 0,
-      collected: 0,
-      cancelled: 0,
-    };
-    for (const r of allRows) c[r.status] += 1;
-    return c;
-  }, [allRows]);
+  const queue = usePaginatedQuery(api.waitlist.dealerQueue, queueArgs, {
+    initialNumItems: 100,
+  });
+  const allRows = queue.results ?? [];
+
+  const tabCounts: Record<Tab, number> = {
+    all: counts.waiting + counts.allotted + counts.history + counts.cancelled,
+    waiting: counts.waiting,
+    allotted: counts.allotted,
+    collected: counts.history,
+    cancelled: counts.cancelled,
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -118,7 +118,7 @@ function DealerWaitlistPage() {
     if (tab !== "all") rows = rows.filter((r) => r.status === tab);
     if (q) {
       rows = rows.filter((r) =>
-        [r.consumer?.fullName, r.consumer?.citizenshipNo, r.consumer?.phone, r.note]
+        [r.consumer?.fullName, r.consumer?.phone, r.note]
           .filter(Boolean)
           .some((v) => (v as string).toLowerCase().includes(q)),
       );
@@ -146,17 +146,9 @@ function DealerWaitlistPage() {
     setBusyId(id);
     try {
       if (fn === "allot") {
-        await allotEntry(
-          sessionToken
-            ? { sessionToken, entryId: id }
-            : { ownerAccountId: user.accountId, entryId: id },
-        );
+        await allotEntry({ ...sessionArgs(sessionToken), entryId: id });
       } else {
-        await collectEntry(
-          sessionToken
-            ? { sessionToken, entryId: id }
-            : { ownerAccountId: user.accountId, entryId: id },
-        );
+        await collectEntry({ ...sessionArgs(sessionToken), entryId: id });
       }
       toast.success(fn === "allot" ? "Cylinder allotted" : "Marked collected");
     } catch (error) {
@@ -170,11 +162,7 @@ function DealerWaitlistPage() {
     if (!user) return;
     setBusyId(id);
     try {
-      await cancelEntry(
-        sessionToken
-          ? { sessionToken, entryId: id, reason }
-          : { requesterAccountId: user.accountId, entryId: id, reason },
-      );
+      await cancelEntry({ ...sessionArgs(sessionToken), entryId: id, reason });
       toast.success("Request cancelled");
       setCancelTarget(null);
     } catch (error) {
@@ -209,11 +197,7 @@ function DealerWaitlistPage() {
     if (!user || selectedWaiting.length === 0) return;
     setBulkBusy(true);
     try {
-      const result = await bulkAllot(
-        sessionToken
-          ? { sessionToken, entryIds: selectedWaiting.map((r) => r._id) }
-          : { ownerAccountId: user.accountId, entryIds: selectedWaiting.map((r) => r._id) },
-      );
+      const result = await bulkAllot({ ...sessionArgs(sessionToken), entryIds: selectedWaiting.map((r) => r._id) });
       setSelected(new Set());
       toast.success(`Allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"}.`);
       if (result.skipped > 0) {
@@ -233,9 +217,7 @@ function DealerWaitlistPage() {
     if (!user) return;
     setAutoBusy(true);
     try {
-      const result = await autoAllot(
-        sessionToken ? { sessionToken } : { ownerAccountId: user.accountId },
-      );
+      const result = await autoAllot({ ...sessionArgs(sessionToken) });
       toast.success(
         `Auto-allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"} right now - the next customers are now allotted.`,
       );
@@ -291,11 +273,11 @@ function DealerWaitlistPage() {
         </Select>
       </div>
 
-      {counts.waiting > 0 ? (
+      {tabCounts.waiting > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-3">
           <CheckCheck className="size-4 text-success" />
           <p className="text-sm">
-            <span className="font-semibold">{counts.waiting}</span> waiting ·{" "}
+            <span className="font-semibold">{tabCounts.waiting}</span> waiting ·{" "}
             <span className="font-semibold">{stock}</span> in stock - allot in queue order to match
             your stock.
           </p>
@@ -324,7 +306,7 @@ function DealerWaitlistPage() {
                 : "bg-card text-muted-foreground ring-border hover:bg-accent hover:text-accent-foreground",
             )}
           >
-            {t.label} ({counts[t.key]})
+            {t.label} ({tabCounts[t.key]})
           </button>
         ))}
       </div>
@@ -362,7 +344,7 @@ function DealerWaitlistPage() {
         </div>
       ) : null}
 
-      {queue === undefined ? (
+      {queue.status === "LoadingFirstPage" ? (
         <div className="grid h-40 place-items-center rounded-2xl border border-border bg-card">
           <Loader2 className="size-5 animate-spin text-primary" />
         </div>
@@ -439,7 +421,7 @@ function DealerWaitlistPage() {
                       </p>
                     </td>
                     <td className="border-b border-border px-4 py-4 text-sm">
-                      {maskCitizenship(row.consumer?.citizenshipNo)}
+                      {maskCitizenship(row.consumer?.citizenshipMasked)}
                     </td>
                     <td className="border-b border-border px-4 py-4">
                       <StatusBadge status={row.status} />
@@ -512,8 +494,24 @@ function DealerWaitlistPage() {
             </table>
           </div>
           <p className="px-1 text-center text-xs text-muted-foreground">
-            Showing {filtered.length} of {allRows.length} requests - up to 300 per status.
+            Showing {filtered.length} of {tabCounts[tab]} request
+            {tabCounts[tab] === 1 ? "" : "s"}.
           </p>
+          {queue.status === "CanLoadMore" ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => queue.loadMore(100)}
+              disabled={queue.isLoading}
+            >
+              {queue.isLoading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
+              Load more
+            </Button>
+          ) : null}
         </div>
       )}
 

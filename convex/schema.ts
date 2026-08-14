@@ -23,9 +23,11 @@ export default defineSchema({
     token: v.string(),
     accountId: v.id("accounts"),
     createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
   })
     .index("by_token", ["token"])
-    .index("by_account", ["accountId"]),
+    .index("by_account", ["accountId"])
+    .index("by_created", ["createdAt"]),
 
   users: defineTable({
     accountId: v.id("accounts"),
@@ -97,7 +99,8 @@ export default defineSchema({
   })
     .index("by_consumer_status", ["consumerAccountId", "status"])
     .index("by_consumer_created", ["consumerAccountId", "createdAt"])
-    .index("by_dealer_status_created", ["dealerId", "status", "createdAt"]),
+    .index("by_dealer_status_created", ["dealerId", "status", "createdAt"])
+    .index("by_dealer_created", ["dealerId", "createdAt"]),
 
   notifications: defineTable({
     accountId: v.id("accounts"),
@@ -105,7 +108,20 @@ export default defineSchema({
     body: v.optional(v.string()),
     read: v.boolean(),
     createdAt: v.number(),
-  }).index("by_account_created", ["accountId", "createdAt"]),
+  })
+    .index("by_account_created", ["accountId", "createdAt"])
+    .index("by_created", ["createdAt"]),
+
+  loginAttempts: defineTable({
+    key: v.string(),
+    failures: v.number(),
+    lockedUntil: v.optional(v.number()),
+    attemptCount: v.number(),
+    windowStartedAt: v.number(),
+    lastAttemptAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_last_attempt", ["lastAttemptAt"]),
 
   auditLogs: defineTable({
     actorAccountId: v.optional(v.id("accounts")),

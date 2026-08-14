@@ -1,30 +1,28 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { appRole } from "./schema";
-
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
-}
-
-function bytesToHex(bytes: Uint8Array) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function hexToBytes(hex: string) {
-  const clean = hex.trim();
-  const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < bytes.length; i += 1) {
-    bytes[i] = Number.parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
-function randomToken() {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return bytesToHex(bytes);
-}
+import {
+  clearAttempt,
+  createSession,
+  hashPassword,
+  isDemoSeedEnabled,
+  normalizeEmail,
+  optionalSession,
+  pruneExpiredForAccount,
+  recordLoginFailure,
+  requireSession,
+  sessionByToken,
+  throttleWindow,
+  verifyPassword,
+} from "./auth";
+import {
+  LOGIN_MAX_ATTEMPTS,
+  LOGIN_WINDOW_MS,
+  SIGNUP_MAX_PER_DEVICE,
+  SIGNUP_MAX_PER_DEVICE_WINDOW_MS,
+  SIGNUP_MAX_PER_EMAIL,
+  SIGNUP_MAX_PER_EMAIL_WINDOW_MS,
+} from "./auth";
 
 function collectionCode() {
   return `GQ-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -99,36 +97,6 @@ async function dealerProfileByAccount(ctx: any, accountId: Id<"accounts">) {
     .first();
 }
 
-async function sessionByToken(ctx: any, token: string) {
-  return await ctx.db
-    .query("sessions")
-    .withIndex("by_token", (q: any) => q.eq("token", token))
-    .first();
-}
-
-async function accountFromSessionToken(ctx: any, token?: string) {
-  if (!token) return null;
-  const session = await sessionByToken(ctx, token);
-  if (!session) return null;
-  const account = await ctx.db.get(session.accountId);
-  if (!account) return null;
-  return { session, account };
-}
-
-function resolveSessionToken(args: { sessionToken?: string; accountId?: string }) {
-  return args.sessionToken ?? args.accountId;
-}
-
-async function createSession(ctx: any, accountId: Id<"accounts">) {
-  const token = randomToken();
-  await ctx.db.insert("sessions", {
-    token,
-    accountId,
-    createdAt: Date.now(),
-  });
-  return token;
-}
-
 async function userByUsername(ctx: any, username: string) {
   return await ctx.db
     .query("users")
@@ -167,15 +135,23 @@ async function upsertUserFields(
   ctx: any,
   accountId: Id<"accounts">,
   fields: {
-    fullName?: string;
-    citizenshipNo?: string;
-    address?: string;
-    district?: string;
-    phone?: string;
-    collectionCode?: string;
+    fullName?: string | undefined;
+    citizenshipNo?: string | undefined;
+    address?: string | undefined;
+    district?: string | undefined;
+    phone?: string | undefined;
+    collectionCode?: string | undefined;
   },
 ) {
-  const patch: Record<string, unknown> = {};
+  type UserPatch = {
+    fullName?: string | undefined;
+    citizenshipNo?: string | undefined;
+    address?: string | undefined;
+    district?: string | undefined;
+    phone?: string | undefined;
+    collectionCode?: string | undefined;
+  };
+  const patch: UserPatch = {};
   if (fields.fullName !== undefined) patch.fullName = fields.fullName.trim() || undefined;
   if (fields.citizenshipNo !== undefined) patch.citizenshipNo = fields.citizenshipNo.trim() || undefined;
   if (fields.address !== undefined) patch.address = fields.address.trim() || undefined;
@@ -215,13 +191,19 @@ async function upsertDealerProfileFields(
   ctx: any,
   accountId: Id<"accounts">,
   fields: {
-    fullName?: string;
-    address?: string;
-    district?: string;
-    phone?: string;
+    fullName?: string | undefined;
+    address?: string | undefined;
+    district?: string | undefined;
+    phone?: string | undefined;
   },
 ) {
-  const patch: Record<string, unknown> = {};
+  type DealerPatch = {
+    fullName?: string | undefined;
+    address?: string | undefined;
+    district?: string | undefined;
+    phone?: string | undefined;
+  };
+  const patch: DealerPatch = {};
   if (fields.fullName !== undefined) patch.fullName = fields.fullName.trim() || undefined;
   if (fields.address !== undefined) patch.address = fields.address.trim() || undefined;
   if (fields.district !== undefined) patch.district = fields.district.trim() || undefined;
@@ -251,12 +233,12 @@ async function createAccount(
     email: string;
     password: string;
     role: "consumer" | "dealer";
-    fullName?: string;
-    citizenshipNo?: string;
-    address?: string;
-    district?: string;
-    phone?: string;
-    collectionCode?: string;
+    fullName?: string | undefined;
+    citizenshipNo?: string | undefined;
+    address?: string | undefined;
+    district?: string | undefined;
+    phone?: string | undefined;
+    collectionCode?: string | undefined;
   },
 ) {
   const email = normalizeEmail(args.email);
@@ -334,47 +316,83 @@ export const signUp = mutation({
     password: v.string(),
     role: v.union(v.literal("consumer"), v.literal("dealer")),
     fullName: v.string(),
+    deviceId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (args.password.length < 8) throw new ConvexError("Use at least 8 characters");
-    return await createAccount(ctx, args);
+    if (args.password.length < 8) return { ok: false as const, message: "Use at least 8 characters" };
+    if (args.deviceId) {
+      await throttleWindow(ctx, `signup-device:${args.deviceId}`, SIGNUP_MAX_PER_DEVICE, SIGNUP_MAX_PER_DEVICE_WINDOW_MS);
+    }
+    await throttleWindow(ctx, `signup-email:${normalizeEmail(args.email)}`, SIGNUP_MAX_PER_EMAIL, SIGNUP_MAX_PER_EMAIL_WINDOW_MS);
+    try {
+      const sessionToken = await createAccount(ctx, args);
+      return { ok: true as const, sessionToken };
+    } catch (err) {
+      if (err instanceof ConvexError) {
+        return { ok: false as const, message: err.message };
+      }
+      throw err;
+    }
   },
 });
 
 export const signIn = mutation({
-  args: { email: v.string(), password: v.string() },
+  args: { email: v.string(), password: v.string(), deviceId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const email = normalizeEmail(args.email);
+    const emailKey = `signin:${email}`;
+    const deviceKey = args.deviceId ? `signin-device:${args.deviceId}` : null;
+    if (deviceKey) await throttleWindow(ctx, deviceKey, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
+    await throttleWindow(ctx, emailKey, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
     const account = await ctx.db
       .query("accounts")
-      .withIndex("by_email", (q: any) => q.eq("email", normalizeEmail(args.email)))
+      .withIndex("by_email", (q: any) => q.eq("email", email))
       .first();
-    if (!account) {
-      throw new ConvexError("Unable to sign in");
+    if (!account || !account.password.startsWith("pbkdf2$")) {
+      await recordLoginFailure(ctx, emailKey);
+      if (deviceKey) await recordLoginFailure(ctx, deviceKey);
+      return { ok: false as const, message: "Unable to sign in" };
     }
-    const looksHashed = account.password.startsWith("pbkdf2$");
-    if (looksHashed) {
-      const valid = await verifyPassword(args.password, account.password);
-      if (!valid) throw new ConvexError("Unable to sign in");
-    } else {
-      if (account.password !== args.password) throw new ConvexError("Unable to sign in");
-      await ctx.db.patch(account._id, { password: await hashPassword(args.password) });
+    const valid = await verifyPassword(args.password, account.password);
+    if (!valid) {
+      await recordLoginFailure(ctx, emailKey);
+      if (deviceKey) await recordLoginFailure(ctx, deviceKey);
+      return { ok: false as const, message: "Unable to sign in" };
     }
+    await clearAttempt(ctx, emailKey);
+    if (deviceKey) await clearAttempt(ctx, deviceKey);
+    await pruneExpiredForAccount(ctx, account._id);
     await auditLog(ctx, { actorAccountId: account._id, action: "account:signIn", targetType: "account", targetId: String(account._id) });
-    return await createSession(ctx, account._id);
+    return { ok: true as const, sessionToken: await createSession(ctx, account._id) };
+  },
+});
+
+export const signOut = mutation({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const session = await sessionByToken(ctx, args.sessionToken);
+    if (session) await ctx.db.delete(session._id);
+    return true;
   },
 });
 
 export const viewer = query({
-  args: { sessionToken: v.optional(v.string()), accountId: v.optional(v.string()) },
+  args: { sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
+    const session = await optionalSession(ctx, args.sessionToken);
     if (!session) return null;
+    const account = {
+      _id: session.account._id,
+      email: session.account.email,
+      role: session.account.role,
+      createdAt: session.account.createdAt,
+    };
     const user =
       session.account.role === "dealer"
         ? await dealerProfileByAccount(ctx, session.account._id)
         : await userByAccount(ctx, session.account._id);
     return {
-      account: session.account,
+      account,
       user,
       dealer: session.account.role === "dealer" ? await dealerByOwner(ctx, session.account._id) : null,
     };
@@ -382,10 +400,12 @@ export const viewer = query({
 });
 
 export const updateRole = mutation({
-  args: { sessionToken: v.optional(v.string()), accountId: v.optional(v.string()), role: appRole },
+  args: {
+    sessionToken: v.optional(v.string()),
+    role: v.union(v.literal("consumer"), v.literal("dealer")),
+  },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
-    if (!session) throw new ConvexError("Not signed in");
+    const session = await requireSession(ctx, args.sessionToken);
     await ctx.db.patch(session.account._id, { role: args.role });
     await auditLog(ctx, { actorAccountId: session.account._id, action: "account:updateRole", targetType: "account", targetId: String(session.account._id), details: args.role });
   },
@@ -394,7 +414,6 @@ export const updateRole = mutation({
 export const updateProfile = mutation({
   args: {
     sessionToken: v.optional(v.string()),
-    accountId: v.optional(v.string()),
     fullName: v.string(),
     citizenshipNo: v.optional(v.string()),
     address: v.optional(v.string()),
@@ -402,8 +421,7 @@ export const updateProfile = mutation({
     phone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
-    if (!session) throw new ConvexError("Not signed in");
+    const session = await requireSession(ctx, args.sessionToken);
     if (session.account.role === "dealer") {
       await upsertDealerProfileFields(ctx, session.account._id, {
         fullName: args.fullName,
@@ -427,7 +445,6 @@ export const updateProfile = mutation({
 export const upsertDealer = mutation({
   args: {
     sessionToken: v.optional(v.string()),
-    accountId: v.optional(v.string()),
     businessName: v.string(),
     licenseNo: v.optional(v.string()),
     district: v.string(),
@@ -435,16 +452,19 @@ export const upsertDealer = mutation({
     phone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
-    if (!session) throw new ConvexError("Not signed in");
-    await ctx.db.patch(session.account._id, { role: "dealer" });
+    const session = await requireSession(ctx, args.sessionToken);
     const existing = await dealerByOwner(ctx, session.account._id);
+    const businessName = args.businessName.trim();
+    const district = args.district;
+    const address = args.address.trim();
+    const licenseNo = args.licenseNo?.trim();
+    const phone = args.phone?.trim();
     const payload = {
-      businessName: args.businessName.trim(),
-      licenseNo: args.licenseNo?.trim() || undefined,
-      district: args.district,
-      address: args.address.trim(),
-      phone: args.phone?.trim() || undefined,
+      businessName,
+      district,
+      address,
+      ...(licenseNo ? { licenseNo } : {}),
+      ...(phone ? { phone } : {}),
     };
     if (existing) {
       await ctx.db.patch(existing._id, payload);
@@ -456,8 +476,8 @@ export const upsertDealer = mutation({
       ...payload,
       stock: 0,
       code: dealerCode(args.businessName),
-      isActive: true,
-      approvalStatus: "approved",
+      isActive: false,
+      approvalStatus: "pending",
       requestedAt: Date.now(),
     });
     await auditLog(ctx, { actorAccountId: session.account._id, action: "dealer:create", targetType: "dealer", targetId: String(dealerId) });
@@ -466,10 +486,9 @@ export const upsertDealer = mutation({
 });
 
 export const updateDealerStock = mutation({
-  args: { sessionToken: v.optional(v.string()), accountId: v.optional(v.string()), stock: v.number() },
+  args: { sessionToken: v.optional(v.string()), stock: v.number() },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
-    if (!session) throw new ConvexError("Not signed in");
+    const session = await requireSession(ctx, args.sessionToken);
     const dealer = await dealerByOwner(ctx, session.account._id);
     if (!dealer) throw new ConvexError("Depot not found");
     await ctx.db.patch(dealer._id, { stock: Math.max(0, Math.floor(args.stock)) });
@@ -480,14 +499,12 @@ export const updateDealerStock = mutation({
 export const updateDealerDetails = mutation({
   args: {
     sessionToken: v.optional(v.string()),
-    accountId: v.optional(v.string()),
     businessName: v.string(),
     address: v.optional(v.string()),
     phone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
-    if (!session) throw new ConvexError("Not signed in");
+    const session = await requireSession(ctx, args.sessionToken);
     const dealer = await dealerByOwner(ctx, session.account._id);
     if (!dealer) throw new ConvexError("Depot not found");
     await ctx.db.patch(dealer._id, {
@@ -500,10 +517,9 @@ export const updateDealerDetails = mutation({
 });
 
 export const toggleDealerActive = mutation({
-  args: { sessionToken: v.optional(v.string()), accountId: v.optional(v.string()), isActive: v.boolean() },
+  args: { sessionToken: v.optional(v.string()), isActive: v.boolean() },
   handler: async (ctx, args) => {
-    const session = await accountFromSessionToken(ctx, resolveSessionToken(args));
-    if (!session) throw new ConvexError("Not signed in");
+    const session = await requireSession(ctx, args.sessionToken);
     const dealer = await dealerByOwner(ctx, session.account._id);
     if (!dealer) throw new ConvexError("Depot not found");
     await ctx.db.patch(dealer._id, { isActive: args.isActive });
@@ -512,8 +528,13 @@ export const toggleDealerActive = mutation({
 });
 
 export const accountByCollectionCode = query({
-  args: { code: v.string() },
+  args: { code: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const session = await requireSession(ctx, args.sessionToken);
+    const dealer = await dealerByOwner(ctx, session.account._id);
+    if (!dealer || !dealer.isActive || dealer.approvalStatus !== "approved") {
+      throw new ConvexError("Not your depot");
+    }
     const user = await ctx.db
       .query("users")
       .withIndex("by_collection_code", (q: any) => q.eq("collectionCode", args.code.trim().toUpperCase()))
@@ -592,6 +613,7 @@ async function ensureDemo(
 export const ensureDemoAccounts = mutation({
   args: {},
   handler: async (ctx) => {
+    if (!isDemoSeedEnabled()) throw new ConvexError("Demo seeding is disabled");
     const consumerId = await ensureDemo(ctx, {
       email: "demo.consumer@YoGas.app",
       password: "demo1234",
@@ -616,51 +638,3 @@ export const ensureDemoAccounts = mutation({
     return { consumerId, dealerId };
   },
 });
-
-async function hashPassword(password: string) {
-  const salt = new Uint8Array(16);
-  crypto.getRandomValues(salt);
-  const imported = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt,
-      iterations: 120000,
-    },
-    imported,
-    256,
-  );
-  return `pbkdf2$120000$${bytesToHex(salt)}$${bytesToHex(new Uint8Array(bits))}`;
-}
-
-async function verifyPassword(password: string, encoded: string) {
-  const [scheme, iterationsText, saltHex, hashHex] = encoded.split("$");
-  if (scheme !== "pbkdf2" || !iterationsText || !saltHex || !hashHex) return false;
-  const iterations = Number.parseInt(iterationsText, 10);
-  if (!Number.isFinite(iterations) || iterations < 1) return false;
-  const imported = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt: hexToBytes(saltHex),
-      iterations,
-    },
-    imported,
-    256,
-  );
-  return bytesToHex(new Uint8Array(bits)) === hashHex;
-}
