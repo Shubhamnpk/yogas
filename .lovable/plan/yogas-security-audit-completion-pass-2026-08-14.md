@@ -26,6 +26,7 @@ Medium
 ## What this pass fixes
 
 **Backend authorization rewrite**
+
 - One `requireSession` helper used everywhere: session token only, never an account id. Every function that reads or writes user data goes through it.
 - Sessions get a 30-day expiry, a server-side `signOut` that deletes the row, expired-session pruning on sign-in, and the client drops the token the moment the server reports it invalid.
 - `allotEntry`, `collectEntry`, `bulkAllot`, `autoAllotByStock`, `cancelEntry`: caller must be the approved owner of that depot — no fallbacks.
@@ -33,13 +34,23 @@ Medium
 - `updateRole` limited to consumer/dealer, never admin. Role elevation stays admin-only through `admin.setUserRole`.
 - `upsertDealer` creates depots as pending/inactive, awaiting admin approval.
 - `setEntryStatusForSeed` deleted.
-- Plaintext password comparison removed; the demo admin is seeded with a hashed password and the seeding mutation is no longer callable from the browser.
-- Simple rate limiting: failed sign-ins per email tracked in a table, 5 failures locks the email for 15 minutes; sign-up throttled per email.
+- Plaintext password comparison removed; the demo admin is seeded with a hashed password and the seeding mutation is no longer callable from the browser. ( make this dev mode only accesed by the devopers from the local host or crt+shift+D)
+- Simple rate limiting: failed sign-ins per email tracked in a table, 5 failures locks the email for 15 minutes; sign-up throttled per email. and what baout per ip too like from that device cevice rate limit and implate that in the most best way and optimal way 
 
 **Bug/completion sweep**
+
 - Client call sites stop sending `accountId` / `ownerAccountId` / `requesterAccountId` and always send the session token.
 - Dealer scan page passes the scanned consumer's id under the new argument name.
 - Expired-session handling: clear local state and send the user to sign-in with a "your session expired" message.
+
+Add this feature
+
+- Depot map view and distance sort.
+- Multi-staff dealer accounts, so a depot can have more than one login.
+- Exportable collection register (CSV) for dealer record-keeping.
+- Exportable collection register (CSV) for dealer record-keeping.
+- cizenship numbers are not validated in format   we will check the fromt from now one like citizen ship cnat be aplphabate only  numbers / , - etc 
+- Time-boxed allotment: reserved cylinders auto-return to stock after N hours, and the next person in line is notified. (optional dealer can choose ) 
 
 ## Features worth adding next (not in this pass unless you say so)
 
@@ -53,4 +64,4 @@ Medium
 
 ## Technical notes
 
-Files touched: `convex/app.ts`, `convex/waitlist.ts`, `convex/admin.ts`, `convex/schema.ts` (session expiry + login-attempt table), `src/lib/auth.tsx`, and the route files that pass account ids (`dashboard`, `waitlist`, `dealer.index`, `dealer.waitlist`, `dealer.scan`, `onboarding`, `auth`). No UI redesign.
+Files touched: `convex/app.ts`, `convex/waitlist.ts`, `convex/admin.ts`, `convex/schema.ts` (session expiry + login-attempt table), `src/lib/auth.tsx`, and the route files that pass account ids (`dashboard`, `waitlist`, `dealer.index`, `dealer.waitlist`, `dealer.scan`, `onboarding`, `auth`). No UI redesign. Do all task in the best and optimla way to ehnce the whole app foundation and ux and another thing is be efficent and be the best and optimal to achive all of our golas and 
