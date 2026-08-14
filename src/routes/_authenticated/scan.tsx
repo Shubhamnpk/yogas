@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { QrCode } from "lucide-react";
 import { toast } from "sonner";
 import QrScanner from "@/components/QrScanner";
@@ -11,9 +11,9 @@ import { parseScanPayload } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/scan")({
   head: () => ({
     meta: [
-      { title: "Scan a depot — YoGas" },
+      { title: "Scan a depot - YoGas" },
       { name: "description", content: "Scan a depot QR code to join its LPG waitlist instantly." },
-      { property: "og:title", content: "Scan a depot — YoGas" },
+      { property: "og:title", content: "Scan a depot - YoGas" },
       { property: "og:description", content: "Point your camera at the depot's code to join." },
     ],
   }),
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/scan")({
 function ScanPage() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
+  const handled = useRef(false);
 
   const go = (value: string) => {
     const clean = value.trim();
@@ -44,11 +45,13 @@ function ScanPage() {
 
       <QrScanner
         onResult={(text) => {
+          if (handled.current) return;
           const parsed = parseScanPayload(text);
           if (parsed.kind === "consumer") {
             toast.error("That's a consumer code. Scan the depot's code instead.");
             return;
           }
+          handled.current = true;
           go(parsed.value);
         }}
       />

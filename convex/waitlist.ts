@@ -13,6 +13,41 @@ function collectedAtValue(entry: Doc<"waitlistEntries">) {
   return entry.collectedAt ?? 0;
 }
 
+/**
+ * Fetch the full waiting line for each given dealer, keyed by dealerId.
+ * Used to compute a consumer's true position among everyone waiting,
+ * not just their own entries.
+ */
+async function dealerWaitingLines(
+  ctx: any,
+  dealerIds: Iterable<Id<"dealers">>,
+): Promise<Map<string, Doc<"waitlistEntries">[]>> {
+  const lines = new Map<string, Doc<"waitlistEntries">[]>();
+  for (const dealerId of new Set(dealerIds)) {
+    const rows = await ctx.db
+      .query("waitlistEntries")
+      .withIndex("by_dealer_status_created", (q: any) =>
+        q.eq("dealerId", dealerId).eq("status", "waiting"),
+      )
+      .collect();
+    rows.sort((a: Doc<"waitlistEntries">, b: Doc<"waitlistEntries">) => a.createdAt - b.createdAt);
+    lines.set(dealerId, rows);
+  }
+  return lines;
+}
+
+/** One-based index of `entry` within its dealer's waiting line, if waiting. */
+function positionInLine(
+  lines: Map<string, Doc<"waitlistEntries">[]>,
+  entry: Doc<"waitlistEntries">,
+): number | undefined {
+  if (entry.status !== "waiting") return undefined;
+  const line = lines.get(entry.dealerId);
+  if (!line) return undefined;
+  const index = line.findIndex((x) => x._id === entry._id);
+  return index === -1 ? undefined : index + 1;
+}
+
 async function notify(ctx: { db: any }, accountId: Id<"accounts">, title: string, body?: string) {
   await ctx.db.insert("notifications", {
     accountId,
@@ -253,26 +288,17 @@ export const consumerEntries = query({
       .query("waitlistEntries")
       .withIndex("by_consumer_created", (q) => q.eq("consumerAccountId", account._id))
       .collect();
-    const waitingByDealer = new Map<string, Doc<"waitlistEntries">[]>();
-    for (const row of rows) {
-      if (row.status !== "waiting") continue;
-      const current = waitingByDealer.get(row.dealerId) ?? [];
-      current.push(row);
-      waitingByDealer.set(row.dealerId, current);
-    }
-    for (const group of waitingByDealer.values()) {
-      group.sort((a, b) => a.createdAt - b.createdAt);
-    }
+    const lines = await dealerWaitingLines(
+      ctx,
+      rows.filter((r) => r.status === "waiting").map((r) => r.dealerId),
+    );
     return await Promise.all(
       rows
         .sort((a, b) => b.createdAt - a.createdAt)
         .map(async (entry) => {
           const dealer = await ctx.db.get(entry.dealerId);
-          const position =
-            entry.status === "waiting"
-              ? (waitingByDealer.get(entry.dealerId)?.findIndex((x) => x._id === entry._id) ?? -1) + 1
-              : undefined;
-          return { ...entry, dealer, position: position || undefined };
+          const position = positionInLine(lines, entry);
+          return { ...entry, dealer, position: position ?? undefined };
         }),
     );
   },
@@ -287,22 +313,15 @@ export const consumerWaitlistAll = query({
       .query("waitlistEntries")
       .withIndex("by_consumer_created", (q) => q.eq("consumerAccountId", account._id))
       .collect();
-    const waitingByDealer = new Map<string, Doc<"waitlistEntries">[]>();
-    for (const row of rows) {
-      if (row.status !== "waiting") continue;
-      const group = waitingByDealer.get(row.dealerId) ?? [];
-      group.push(row);
-      waitingByDealer.set(row.dealerId, group);
-    }
-    for (const group of waitingByDealer.values()) group.sort((a, b) => a.createdAt - b.createdAt);
+    const lines = await dealerWaitingLines(
+      ctx,
+      rows.filter((r) => r.status === "waiting").map((r) => r.dealerId),
+    );
     const enriched = await Promise.all(
       rows.map(async (entry) => {
         const dealer = await ctx.db.get(entry.dealerId);
-        const position =
-          entry.status === "waiting"
-            ? (waitingByDealer.get(entry.dealerId)?.findIndex((x) => x._id === entry._id) ?? -1) + 1
-            : undefined;
-        return { ...entry, dealer, position: position || undefined };
+        const position = positionInLine(lines, entry);
+        return { ...entry, dealer, position: position ?? undefined };
       }),
     );
     return enriched.sort((a, b) => b.createdAt - a.createdAt);
@@ -325,24 +344,15 @@ export const consumerWaitlistPage = query({
       .query("waitlistEntries")
       .withIndex("by_consumer_created", (q) => q.eq("consumerAccountId", account._id))
       .collect();
-    const waitingByDealer = new Map<string, Doc<"waitlistEntries">[]>();
-    for (const row of allRows) {
-      if (row.status !== "waiting") continue;
-      const current = waitingByDealer.get(row.dealerId) ?? [];
-      current.push(row);
-      waitingByDealer.set(row.dealerId, current);
-    }
-    for (const group of waitingByDealer.values()) {
-      group.sort((a, b) => a.createdAt - b.createdAt);
-    }
+    const lines = await dealerWaitingLines(
+      ctx,
+      allRows.filter((r) => r.status === "waiting").map((r) => r.dealerId),
+    );
     const enriched = await Promise.all(
       page.page.map(async (entry) => {
         const dealer = await ctx.db.get(entry.dealerId);
-        const position =
-          entry.status === "waiting"
-            ? (waitingByDealer.get(entry.dealerId)?.findIndex((x) => x._id === entry._id) ?? -1) + 1
-            : undefined;
-        return { ...entry, dealer, position: position || undefined };
+        const position = positionInLine(lines, entry);
+        return { ...entry, dealer, position: position ?? undefined };
       }),
     );
     return { ...page, page: enriched };
@@ -567,7 +577,7 @@ export const joinDepot = mutation({
       consumerAccountId: account._id,
       quantity: args.quantity,
       cylinderSize: args.cylinderSize,
-      note: args.note?.trim() || undefined,
+      ...(args.note?.trim() ? { note: args.note.trim() } : {}),
       status: "waiting",
       createdAt: Date.now(),
     });
@@ -577,6 +587,74 @@ export const joinDepot = mutation({
       targetType: "waitlistEntry",
       targetId: String(entryId),
       details: `${args.dealerId}:${args.quantity}`,
+    });
+    return entryId;
+  },
+});
+
+export const addConsumerToQueue = mutation({
+  args: {
+    consumerAccountId: v.id("accounts"),
+    sessionToken: v.optional(v.string()),
+    ownerAccountId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const dealer = await dealerFromTokenOrAccount(ctx, resolveActor(args));
+    if (!dealer) throw new ConvexError("Not your depot");
+    if (!dealer.isActive || dealer.approvalStatus !== "approved") {
+      throw new ConvexError("Depot is not accepting requests");
+    }
+    const consumer = await ctx.db.get(args.consumerAccountId);
+    if (!consumer) throw new ConvexError("Consumer not found");
+    if (consumer.role !== "consumer") throw new ConvexError("This account is not a consumer");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_account", (q: any) => q.eq("accountId", consumer._id))
+      .first();
+    if (!user) throw new ConvexError("Consumer profile is not complete");
+    if (user.cooldownUntil && user.cooldownUntil > Date.now()) {
+      throw new ConvexError("This customer is still in their cooldown period");
+    }
+    const [allotted, activeHere] = await Promise.all([
+      ctx.db
+        .query("waitlistEntries")
+        .withIndex("by_consumer_status", (q) =>
+          q.eq("consumerAccountId", consumer._id).eq("status", "allotted"),
+        )
+        .collect(),
+      ctx.db
+        .query("waitlistEntries")
+        .withIndex("by_consumer_status", (q) =>
+          q.eq("consumerAccountId", consumer._id).eq("status", "waiting"),
+        )
+        .collect(),
+    ]);
+    if (allotted.length > 0) {
+      throw new ConvexError("This customer already has gas allotted elsewhere");
+    }
+    if (activeHere.some((entry) => entry.dealerId === dealer._id)) {
+      throw new ConvexError("This customer is already in your queue");
+    }
+    const entryId = await ctx.db.insert("waitlistEntries", {
+      dealerId: dealer._id,
+      consumerAccountId: consumer._id,
+      cylinderSize: "14.2kg",
+      quantity: 1,
+      status: "waiting",
+      createdAt: Date.now(),
+    });
+    await notify(
+      ctx,
+      consumer._id,
+      "Added to waitlist",
+      `The dealer added you to the queue at ${dealer.businessName}. Track your position in the app.`,
+    );
+    await auditLog(ctx, {
+      actorAccountId: dealer.ownerAccountId,
+      action: "waitlist:add-by-dealer",
+      targetType: "waitlistEntry",
+      targetId: String(entryId),
+      details: String(consumer._id),
     });
     return entryId;
   },
@@ -734,6 +812,7 @@ export const cancelEntry = mutation({
     entryId: v.id("waitlistEntries"),
     sessionToken: v.optional(v.string()),
     requesterAccountId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const requester = await accountByIdOrSession(ctx, resolveActor(args));
@@ -745,7 +824,14 @@ export const cancelEntry = mutation({
       throw new ConvexError("Not allowed");
     }
     if (!activeStatuses.has(entry.status)) throw new ConvexError("Cannot cancel this request");
-    await ctx.db.patch(entry._id, { status: "cancelled" });
+    const reason = args.reason?.trim();
+    if (dealer?.ownerAccountId === requester._id && !reason) {
+      throw new ConvexError("Please add a reason for cancelling");
+    }
+    await ctx.db.patch(entry._id, {
+      status: "cancelled",
+      cancelledReason: reason || undefined,
+    });
     if (entry.status === "allotted" && dealer) {
       await ctx.db.patch(dealer._id, { stock: dealer.stock + entry.quantity });
     }
@@ -753,13 +839,18 @@ export const cancelEntry = mutation({
       ctx,
       entry.consumerAccountId,
       "Request cancelled",
-      dealer ? `Your request at ${dealer.businessName} was cancelled.` : undefined,
+      dealer
+        ? `Your request at ${dealer.businessName} was cancelled.${
+            reason ? ` Reason: ${reason}` : ""
+          }`
+        : undefined,
     );
     await auditLog(ctx, {
       actorAccountId: requester._id,
       action: "waitlist:cancel",
       targetType: "waitlistEntry",
       targetId: String(entry._id),
+      ...(reason ? { details: reason } : {}),
     });
     return await ctx.db.get(entry._id);
   },

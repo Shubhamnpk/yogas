@@ -23,22 +23,84 @@ export const DEMO_ACCOUNTS = {
   admin: { email: "admin@YoGas.app", password: "admin1234" },
 } as const;
 
-
 export const NEPAL_DISTRICTS = [
-  "Kathmandu",
-  "Lalitpur",
-  "Bhaktapur",
-  "Kaski",
-  "Rupandehi",
-  "Morang",
-  "Chitwan",
-  "Sunsari",
-  "Jhapa",
+  "Achham",
+  "Arghakhanchi",
+  "Baglung",
+  "Baitadi",
+  "Bajhang",
+  "Bajura",
   "Banke",
-  "Kailali",
-  "Makwanpur",
+  "Bara",
+  "Bardiya",
+  "Bhaktapur",
+  "Bhojpur",
+  "Chitwan",
+  "Dadeldhura",
+  "Dailekh",
+  "Dang",
+  "Darchula",
   "Dhading",
+  "Dhankuta",
+  "Dhanusha",
+  "Dolakha",
+  "Dolpa",
+  "Doti",
+  "Eastern Rukum",
+  "Gorkha",
+  "Gulmi",
+  "Humla",
+  "Ilam",
+  "Jajarkot",
+  "Jhapa",
+  "Jumla",
+  "Kailali",
+  "Kalikot",
+  "Kanchanpur",
+  "Kapilvastu",
+  "Kaski",
+  "Kathmandu",
+  "Kavrepalanchok",
+  "Khotang",
+  "Lalitpur",
+  "Lamjung",
+  "Mahottari",
+  "Makwanpur",
+  "Manang",
+  "Morang",
+  "Mugu",
+  "Mustang",
+  "Myagdi",
+  "Nawalpur",
+  "Nuwakot",
+  "Okhaldhunga",
+  "Palpa",
+  "Panchthar",
+  "Parasi",
+  "Parbat",
   "Parsa",
+  "Pyuthan",
+  "Ramechhap",
+  "Rasuwa",
+  "Rautahat",
+  "Rolpa",
+  "Rupandehi",
+  "Salyan",
+  "Sankhuwasabha",
+  "Saptari",
+  "Sarlahi",
+  "Sindhuli",
+  "Sindhupalchok",
+  "Siraha",
+  "Solukhumbu",
+  "Sunsari",
+  "Surkhet",
+  "Syangja",
+  "Tanahun",
+  "Taplejung",
+  "Terhathum",
+  "Udayapur",
+  "Western Rukum",
   "Other",
 ];
 
@@ -50,7 +112,7 @@ export const STATUS_LABEL: Record<EntryStatus, string> = {
 };
 
 export function maskCitizenship(value: string | null | undefined) {
-  if (!value) return "—";
+  if (!value) return "-";
   const trimmed = value.trim();
   if (trimmed.length <= 4) return "•".repeat(trimmed.length);
   return "•".repeat(Math.max(2, trimmed.length - 4)) + trimmed.slice(-4);
@@ -86,6 +148,9 @@ export function formatDateTime(value: string | number | Date) {
 /** Extracts a depot code or consumer id from a scanned QR payload. */
 export function parseScanPayload(raw: string) {
   const text = raw.trim();
+  if (/^GQ-C:/i.test(text)) return { kind: "consumer" as const, value: text.slice(5).trim() };
+  if (/^GQ-D:/i.test(text))
+    return { kind: "depot" as const, value: text.slice(5).trim().toUpperCase() };
   try {
     const url = new URL(text);
     const depot = url.searchParams.get("depot");
@@ -98,11 +163,47 @@ export function parseScanPayload(raw: string) {
   } catch {
     /* not a url */
   }
-  if (/^GQ-C:/i.test(text)) return { kind: "consumer" as const, value: text.slice(5) };
-  if (/^GQ-D:/i.test(text)) return { kind: "depot" as const, value: text.slice(5).toUpperCase() };
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(text)) return { kind: "consumer" as const, value: text };
-  return { kind: "depot" as const, value: text.toUpperCase() };
+  return { kind: "unknown" as const, value: text.toUpperCase() };
 }
 
 export const consumerQrValue = (userId: string) => `GQ-C:${userId}`;
 export const depotQrValue = (code: string) => `GQ-D:${code}`;
+
+const FRIENDLY_ERRORS: Record<string, string> = {
+  "Not signed in": "Please sign in and try again.",
+  "Depot is not accepting requests": "This depot isn't accepting requests right now.",
+  "Depot not found": "We couldn't find that depot.",
+  "Only 1 cylinder can be requested at a time": "Only one cylinder can be requested at a time.",
+  "You can request gas again after your cooling period ends":
+    "You're still in your cooling period after your last collection.",
+  "You already have gas allotted. Collect it before requesting again.":
+    "You already have gas allotted - collect it before requesting another.",
+  "You are already in this depot queue.": "You're already in this depot's queue.",
+  "Not your depot": "That depot isn't yours to manage.",
+  "Consumer not found": "We couldn't find that consumer.",
+  "This account is not a consumer": "That account isn't a consumer profile.",
+  "Consumer profile is not complete": "That customer hasn't finished their profile yet.",
+  "This customer is still in their cooldown period": "That customer is still cooling down.",
+  "This customer already has gas allotted elsewhere":
+    "That customer already has gas allotted at another depot.",
+  "This customer is already in your queue": "That customer is already in your queue.",
+  "Entry not found": "That request no longer exists.",
+  "Entry is not waiting": "That request isn't waiting anymore.",
+  "Not enough stock": "There's not enough cylinder stock to allot that request.",
+  "Cylinder is not allotted yet": "That cylinder hasn't been allotted yet.",
+  "This is not your request": "That isn't your request.",
+  "Not allowed": "You're not allowed to do that.",
+  "Cannot cancel this request": "That request can't be cancelled right now.",
+  "Please add a reason for cancelling": "Please write a reason before cancelling.",
+  "That citizenship number is already in use": "That citizenship number is already registered.",
+  "Missing profile details": "Please complete your profile details first.",
+  "An account with that email already exists": "An account with that email already exists.",
+  "Use at least 8 characters": "Use at least 8 characters for your password.",
+  "Unable to sign in": "We couldn't sign you in. Check your email and password and try again.",
+};
+
+export function friendlyError(error: unknown, fallback: string): string {
+  const raw = error instanceof Error ? error.message.replace(/^Uncaught ConvexError:\s*/i, "") : "";
+  return FRIENDLY_ERRORS[raw] ?? fallback;
+}

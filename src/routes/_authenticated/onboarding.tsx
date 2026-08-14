@@ -10,15 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { NEPAL_DISTRICTS } from "@/lib/gas";
+import { Combobox } from "@/components/ui/combobox";
+import { friendlyError, NEPAL_DISTRICTS } from "@/lib/gas";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
@@ -36,7 +29,6 @@ const consumerSchema = z.object({
   address: z.string().trim().min(4, "Enter your address").max(160),
   district: z.string().trim().min(2, "Choose your district"),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
-
 });
 
 const dealerSchema = z.object({
@@ -86,7 +78,6 @@ function Onboarding() {
     }
   }, [profile]);
 
-
   useEffect(() => {
     if (profileComplete) {
       void navigate({ to: role === "dealer" ? "/dealer" : "/dashboard", replace: true });
@@ -122,9 +113,12 @@ function Onboarding() {
       toast.success("Profile saved");
       await refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not save profile";
-      if (message.toLowerCase().includes("citizenship")) {
-        setCitizenshipError("That citizenship number is already in use. Please change it and try again.");
+      const raw = error instanceof Error ? error.message : "";
+      const message = friendlyError(error, "Could not save profile");
+      if (/citizenship/i.test(raw)) {
+        setCitizenshipError(
+          "That citizenship number is already in use. Please change it and try again.",
+        );
       }
       toast.error(message);
     } finally {
@@ -163,7 +157,7 @@ function Onboarding() {
       toast.success(dealer ? "Depot updated" : "Depot registered");
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not register depot");
+      toast.error(friendlyError(error, "Could not register depot"));
     } finally {
       setBusy(false);
     }
@@ -239,26 +233,20 @@ function Onboarding() {
               ) : null}
             </Field>
             <Field label="Address">
-              <Textarea
+              <Input
                 value={c.address}
                 onChange={(e) => setC({ ...c, address: e.target.value })}
-                rows={2}
                 maxLength={160}
+                placeholder="e.g. Ward 4, Jyatha, Thamel"
               />
             </Field>
             <Field label="District">
-              <Select value={c.district} onValueChange={(v) => setC({ ...c, district: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NEPAL_DISTRICTS.map((x) => (
-                    <SelectItem key={x} value={x}>
-                      {x}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={c.district}
+                onValueChange={(v) => setC({ ...c, district: v })}
+                options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
+                placeholder="Select district"
+              />
             </Field>
 
             <Field label="Phone (optional)">
@@ -305,25 +293,19 @@ function Onboarding() {
               />
             </Field>
             <Field label="District">
-              <Select value={d.district} onValueChange={(v) => setD({ ...d, district: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NEPAL_DISTRICTS.map((x) => (
-                    <SelectItem key={x} value={x}>
-                      {x}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={d.district}
+                onValueChange={(v) => setD({ ...d, district: v })}
+                options={NEPAL_DISTRICTS.map((x) => ({ value: x, label: x }))}
+                placeholder="Select district"
+              />
             </Field>
             <Field label="Depot address">
-              <Textarea
+              <Input
                 value={d.address}
                 onChange={(e) => setD({ ...d, address: e.target.value })}
-                rows={2}
                 maxLength={160}
+                placeholder="e.g. Chabahil Chowk, Kathmandu"
               />
             </Field>
             <Field label="Contact phone (optional)">

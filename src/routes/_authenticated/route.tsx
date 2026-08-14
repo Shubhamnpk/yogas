@@ -25,9 +25,7 @@ function AuthenticatedLayout() {
   const onOnboarding = pathname === "/onboarding";
 
   const dealerBlocked =
-    role === "dealer" &&
-    dealer !== null &&
-    dealer.approval_status !== "approved";
+    role === "dealer" && dealer !== null && dealer.approval_status !== "approved";
 
   useEffect(() => {
     if (!loading && !user) {

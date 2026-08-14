@@ -80,14 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "YoGas — LPG cylinder waitlist for Nepal" },
+      { title: "YoGas - LPG cylinder waitlist for Nepal" },
       {
         name: "description",
         content:
           "Join your local LPG depot's virtual queue, track your position, and collect your cylinder with a QR code.",
       },
       { name: "author", content: "YoGas" },
-      { property: "og:title", content: "YoGas — LPG cylinder waitlist for Nepal" },
+      { property: "og:title", content: "YoGas - LPG cylinder waitlist for Nepal" },
       {
         property: "og:description",
         content: "A fair, transparent virtual queue between LPG dealers and consumers.",

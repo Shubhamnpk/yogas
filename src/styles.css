@@ -168,3 +168,11 @@
   background-clip: text;
   color: transparent;
 }
+
+@utility hide-scrollbars {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

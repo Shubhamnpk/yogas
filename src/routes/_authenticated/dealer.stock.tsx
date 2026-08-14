@@ -10,15 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { stockLabel } from "@/lib/gas";
+import { friendlyError, stockLabel } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/dealer/stock")({
   head: () => ({
     meta: [
-      { title: "Stock & depot — YoGas" },
+      { title: "Stock & depot - YoGas" },
       { name: "description", content: "Update your cylinder stock and depot details." },
-      { property: "og:title", content: "Stock & depot — YoGas" },
-      { property: "og:description", content: "Keep your stock accurate so the queue stays honest." },
+      { property: "og:title", content: "Stock & depot - YoGas" },
+      {
+        property: "og:description",
+        content: "Keep your stock accurate so the queue stays honest.",
+      },
     ],
   }),
   component: DealerStock,
@@ -50,10 +53,13 @@ function DealerStock() {
   const saveStock = async () => {
     setBusy(true);
     try {
-      await updateDealerStock({ sessionToken: sessionToken ?? undefined, stock: Math.max(0, Math.floor(stock)) });
+      await updateDealerStock({
+        sessionToken: sessionToken ?? undefined,
+        stock: Math.max(0, Math.floor(stock)),
+      });
       toast.success("Stock updated");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update stock");
+      toast.error(friendlyError(error, "Could not update stock"));
     } finally {
       setBusy(false);
     }
@@ -74,7 +80,7 @@ function DealerStock() {
       });
       toast.success("Depot details saved");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save depot details");
+      toast.error(friendlyError(error, "Could not save depot details"));
     } finally {
       setBusy(false);
     }
@@ -85,7 +91,7 @@ function DealerStock() {
       await toggleDealerActive({ sessionToken: sessionToken ?? undefined, isActive: value });
       toast.success(value ? "Depot is now visible" : "Depot hidden from consumers");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update depot visibility");
+      toast.error(friendlyError(error, "Could not update depot visibility"));
     }
   };
 

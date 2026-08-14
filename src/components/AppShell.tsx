@@ -26,20 +26,17 @@ const CONSUMER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Home", icon: LayoutGrid },
   { to: "/waitlist", label: "Waitlist", icon: ClipboardList },
   { to: "/dealers", label: "Depots", icon: Store },
-  { to: "/notifications", label: "Alerts", icon: Bell },
 ];
 
 const DEALER_NAV: NavItem[] = [
   { to: "/dealer", label: "Home", icon: LayoutGrid },
   { to: "/dealer/waitlist", label: "Waitlist", icon: ClipboardList },
   { to: "/dealer/stock", label: "Stock", icon: Boxes },
-  { to: "/notifications", label: "Alerts", icon: Bell },
 ];
 
-const ADMIN_NAV: NavItem[] = [
-  { to: "/dashboard", label: "Home", icon: LayoutGrid },
-  { to: "/notifications", label: "Alerts", icon: Bell },
-];
+const ADMIN_NAV: NavItem[] = [{ to: "/dashboard", label: "Home", icon: LayoutGrid }];
+
+const PROFILE_NAV: NavItem = { to: "/profile", label: "Profile", icon: UserRound };
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { role, profile, dealer, signOut, user, sessionToken } = useAuth();
@@ -83,19 +80,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               >
                 {item.label}
-                {item.to === "/notifications" && unread > 0 ? (
-                  <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
-                    {unread}
-                  </span>
-                ) : null}
               </Link>
             ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
             <Link
+              to="/notifications"
+              className="relative grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              aria-label="Notifications"
+            >
+              <Bell className="size-5" />
+              {unread > 0 ? (
+                <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-primary ring-2 ring-background" />
+              ) : null}
+            </Link>
+            <Link
               to="/profile"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
+              className="hidden items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent md:flex"
             >
               <span className="grid size-8 place-items-center rounded-full bg-secondary text-secondary-foreground">
                 <UserRound className="size-4" />
@@ -132,9 +134,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Icon className="size-5" />
                 {item.label}
-                {item.to === "/notifications" && unread > 0 ? (
-                  <span className="absolute right-1/4 top-1.5 size-2 rounded-full bg-primary" />
-                ) : null}
               </Link>
             );
           })}
@@ -143,7 +142,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="-mt-6 flex justify-center">
               <ScanFabTrigger onClick={() => setScanOpen(true)} />
             </div>
-          ) : null}
+          ) : (
+            <span />
+          )}
 
           {nav.slice(2).map((item) => {
             const Icon = item.icon;
@@ -159,12 +160,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Icon className="size-5" />
                 {item.label}
-                {item.to === "/notifications" && unread > 0 ? (
-                  <span className="absolute right-1/4 top-1.5 size-2 rounded-full bg-primary" />
-                ) : null}
               </Link>
             );
           })}
+
+          <Link
+            to={PROFILE_NAV.to}
+            className={cn(
+              "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
+              pathname === PROFILE_NAV.to ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            <UserRound className="size-5" />
+            {PROFILE_NAV.label}
+          </Link>
         </div>
       </nav>
 

@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
-  ArrowDownUp,
   Check,
   CheckCheck,
   Loader2,
@@ -10,16 +9,15 @@ import {
   ScanLine,
   Search,
   Ticket,
-  Trash2,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useAuth } from "@/lib/auth";
+import { CancelRequestModal } from "@/components/CancelRequestModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/StatusBadge";
 import {
   Select,
   SelectContent,
@@ -27,13 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
-import { formatDateTime, maskCitizenship, timeAgo } from "@/lib/gas";
+import { formatDateTime, friendlyError, maskCitizenship, timeAgo } from "@/lib/gas";
 
 export const Route = createFileRoute("/_authenticated/dealer/waitlist")({
   head: () => ({
     meta: [
-      { title: "Waitlist — YoGas" },
+      { title: "Waitlist - YoGas" },
       {
         name: "description",
         content: "Search, filter and allot requests at your depot in one view.",
@@ -84,10 +83,10 @@ function DealerWaitlistPage() {
   );
   const [tab, setTab] = useState<Tab>("waiting");
   const [search, setSearch] = useState("");
-  const [cylinder, setCylinder] = useState("all");
-  const [sort, setSort] = useState<"newest" | "oldest">("newest");
+  const [sort, setSort] = useState<"rank" | "newest" | "oldest">("rank");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Row | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [autoBusy, setAutoBusy] = useState(false);
 
@@ -100,8 +99,6 @@ function DealerWaitlistPage() {
       ...queue.cancelled.map((e) => ({ ...e, status: "cancelled" as const })),
     ].sort((a, b) => b.createdAt - a.createdAt);
   }, [queue]);
-
-  const sizes = useMemo(() => [...new Set(allRows.map((r) => r.cylinderSize))].sort(), [allRows]);
 
   const counts = useMemo(() => {
     const c: Record<Tab, number> = {
@@ -119,7 +116,6 @@ function DealerWaitlistPage() {
     const q = search.trim().toLowerCase();
     let rows = allRows;
     if (tab !== "all") rows = rows.filter((r) => r.status === tab);
-    if (cylinder !== "all") rows = rows.filter((r) => r.cylinderSize === cylinder);
     if (q) {
       rows = rows.filter((r) =>
         [r.consumer?.fullName, r.consumer?.citizenshipNo, r.consumer?.phone, r.note]
@@ -127,17 +123,25 @@ function DealerWaitlistPage() {
           .some((v) => (v as string).toLowerCase().includes(q)),
       );
     }
+    if (sort === "rank") {
+      return rows.sort((a, b) => {
+        const aRank = a.status === "waiting" ? (a.position ?? Infinity) : Infinity;
+        const bRank = b.status === "waiting" ? (b.position ?? Infinity) : Infinity;
+        if (aRank !== bRank) return aRank - bRank;
+        return b.createdAt - a.createdAt;
+      });
+    }
     return rows.sort((a, b) =>
       sort === "newest" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt,
     );
-  }, [allRows, tab, cylinder, search, sort]);
+  }, [allRows, tab, search, sort]);
 
   const visibleWaiting = useMemo(() => filtered.filter((r) => r.status === "waiting"), [filtered]);
   const selectedWaiting = visibleWaiting.filter((r) => selected.has(r._id));
   const selectedQty = selectedWaiting.reduce((sum, r) => sum + r.quantity, 0);
   const stock = dealer?.stock ?? 0;
 
-  const act = async (fn: "allot" | "collect" | "cancel", id: Id<"waitlistEntries">) => {
+  const act = async (fn: "allot" | "collect", id: Id<"waitlistEntries">) => {
     if (!user) return;
     setBusyId(id);
     try {
@@ -147,37 +151,37 @@ function DealerWaitlistPage() {
             ? { sessionToken, entryId: id }
             : { ownerAccountId: user.accountId, entryId: id },
         );
-      } else if (fn === "collect") {
+      } else {
         await collectEntry(
           sessionToken
             ? { sessionToken, entryId: id }
             : { ownerAccountId: user.accountId, entryId: id },
         );
-      } else {
-        await cancelEntry(
-          sessionToken
-            ? { sessionToken, entryId: id }
-            : { requesterAccountId: user.accountId, entryId: id },
-        );
       }
-      toast.success(
-        fn === "allot"
-          ? "Cylinder allotted"
-          : fn === "collect"
-            ? "Marked collected"
-            : "Request cancelled",
-      );
+      toast.success(fn === "allot" ? "Cylinder allotted" : "Marked collected");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update request");
+      toast.error(friendlyError(error, "Could not update request"));
     } finally {
       setBusyId(null);
     }
   };
 
-  const confirmCancel = (row: Row) => {
-    if (!window.confirm(`Cancel the request for ${row.consumer?.fullName ?? "this consumer"}?`))
-      return;
-    void act("cancel", row._id);
+  const cancelWithReason = async (id: Id<"waitlistEntries">, reason: string) => {
+    if (!user) return;
+    setBusyId(id);
+    try {
+      await cancelEntry(
+        sessionToken
+          ? { sessionToken, entryId: id, reason }
+          : { requesterAccountId: user.accountId, entryId: id, reason },
+      );
+      toast.success("Request cancelled");
+      setCancelTarget(null);
+    } catch (error) {
+      toast.error(friendlyError(error, "Could not update request"));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const toggleSelected = (id: string) => {
@@ -216,7 +220,7 @@ function DealerWaitlistPage() {
         toast.warning(`${result.skipped} could not be allotted (no longer waiting or no stock).`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not allot the selection");
+      toast.error(friendlyError(error, "Could not allot the selection"));
     } finally {
       setBulkBusy(false);
     }
@@ -233,10 +237,10 @@ function DealerWaitlistPage() {
         sessionToken ? { sessionToken } : { ownerAccountId: user.accountId },
       );
       toast.success(
-        `Auto-allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"} right now — the next customers are now allotted.`,
+        `Auto-allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"} right now - the next customers are now allotted.`,
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not auto-allot");
+      toast.error(friendlyError(error, "Could not auto-allot"));
     } finally {
       setAutoBusy(false);
     }
@@ -275,27 +279,16 @@ function DealerWaitlistPage() {
             className="pl-9"
           />
         </div>
-        <Select value={cylinder} onValueChange={setCylinder}>
-          <SelectTrigger className="sm:w-44">
-            <SelectValue placeholder="Cylinder size" />
+        <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+          <SelectTrigger className="w-[170px]" aria-label="Sort waitlist">
+            <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All sizes</SelectItem>
-            {sizes.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
+            <SelectItem value="rank">Queue order</SelectItem>
+            <SelectItem value="newest">Newest first</SelectItem>
+            <SelectItem value="oldest">Oldest first</SelectItem>
           </SelectContent>
         </Select>
-        <Button
-          variant="outline"
-          size="icon"
-          title={sort === "newest" ? "Newest first" : "Oldest first"}
-          onClick={() => setSort((s) => (s === "newest" ? "oldest" : "newest"))}
-        >
-          <ArrowDownUp className="size-4" />
-        </Button>
       </div>
 
       {counts.waiting > 0 ? (
@@ -303,7 +296,7 @@ function DealerWaitlistPage() {
           <CheckCheck className="size-4 text-success" />
           <p className="text-sm">
             <span className="font-semibold">{counts.waiting}</span> waiting ·{" "}
-            <span className="font-semibold">{stock}</span> in stock — allot in queue order to match
+            <span className="font-semibold">{stock}</span> in stock - allot in queue order to match
             your stock.
           </p>
           <div className="ml-auto">
@@ -402,7 +395,6 @@ function DealerWaitlistPage() {
                   <th className="border-b border-border px-4 py-3">Consumer</th>
                   <th className="border-b border-border px-4 py-3">Citizenship</th>
                   <th className="border-b border-border px-4 py-3">Status</th>
-                  <th className="border-b border-border px-4 py-3">Cylinder</th>
                   <th className="border-b border-border px-4 py-3">Qty</th>
                   <th className="border-b border-border px-4 py-3">Requested</th>
                   <th className="border-b border-border px-4 py-3">Updated</th>
@@ -436,7 +428,7 @@ function DealerWaitlistPage() {
                           {row.position ?? "?"}
                         </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
+                        <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </td>
                     <td className="border-b border-border px-4 py-4">
@@ -452,7 +444,6 @@ function DealerWaitlistPage() {
                     <td className="border-b border-border px-4 py-4">
                       <StatusBadge status={row.status} />
                     </td>
-                    <td className="border-b border-border px-4 py-4 text-sm">{row.cylinderSize}</td>
                     <td className="border-b border-border px-4 py-4 text-sm">{row.quantity}</td>
                     <td className="border-b border-border px-4 py-4 text-sm text-muted-foreground">
                       {timeAgo(row.createdAt)}
@@ -483,10 +474,10 @@ function DealerWaitlistPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => confirmCancel(row)}
+                              onClick={() => setCancelTarget(row)}
                               disabled={busyId === row._id}
                             >
-                              <Trash2 className="size-4" />
+                              Cancel
                             </Button>
                           </>
                         ) : row.status === "allotted" ? (
@@ -506,10 +497,10 @@ function DealerWaitlistPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => confirmCancel(row)}
+                              onClick={() => setCancelTarget(row)}
                               disabled={busyId === row._id}
                             >
-                              <Trash2 className="size-4" />
+                              Cancel
                             </Button>
                           </>
                         ) : null}
@@ -521,10 +512,20 @@ function DealerWaitlistPage() {
             </table>
           </div>
           <p className="px-1 text-center text-xs text-muted-foreground">
-            Showing {filtered.length} of {allRows.length} requests — up to 300 per status.
+            Showing {filtered.length} of {allRows.length} requests - up to 300 per status.
           </p>
         </div>
       )}
+
+      <CancelRequestModal
+        open={cancelTarget !== null}
+        consumerName={cancelTarget?.consumer?.fullName ?? "the customer"}
+        busy={cancelTarget !== null && busyId === cancelTarget._id}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={(reason) => {
+          if (cancelTarget) void cancelWithReason(cancelTarget._id, reason);
+        }}
+      />
     </div>
   );
 }
