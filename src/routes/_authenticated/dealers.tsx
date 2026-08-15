@@ -5,7 +5,7 @@ import { Loader2, MapPin, Search, Store } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
-import type { Doc, Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,16 @@ const requestSchema = z.object({
   note: z.string().trim().max(240).optional().or(z.literal("")),
 });
 
-type DealerRow = Doc<"dealers"> & { waiting?: number };
+type DealerRow = {
+  _id: Id<"dealers">;
+  businessName: string;
+  district: string;
+  address: string | null;
+  phone: string | null;
+  stock: number;
+  code: string;
+  waiting?: number;
+};
 
 function DealersPage() {
   const { depot } = Route.useSearch();

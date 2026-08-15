@@ -246,7 +246,13 @@ async function createAccount(
     .query("accounts")
     .withIndex("by_email", (q: any) => q.eq("email", email))
     .first();
-  if (existing) throw new ConvexError("An account with that email already exists");
+  // Deliberately generic: revealing "already exists" here would let anyone
+  // probe which emails hold an account.
+  if (existing) {
+    throw new ConvexError(
+      "We could not create that account. If you already have one, sign in instead.",
+    );
+  }
   await assertUniqueCitizenshipNo(ctx, undefined, args.citizenshipNo);
   const hashedPassword = await hashPassword(args.password);
   const accountId = await ctx.db.insert("accounts", {
@@ -336,6 +342,10 @@ export const signUp = mutation({
   },
 });
 
+/** Real PBKDF2 hash of a random value, used only to equalise sign-in timing. */
+const DUMMY_PASSWORD_HASH =
+  "pbkdf2$120000$00000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000";
+
 export const signIn = mutation({
   args: { email: v.string(), password: v.string(), deviceId: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -349,6 +359,9 @@ export const signIn = mutation({
       .withIndex("by_email", (q: any) => q.eq("email", email))
       .first();
     if (!account || !account.password.startsWith("pbkdf2$")) {
+      // Burn a comparable amount of time so "no such account" and "wrong
+      // password" are not distinguishable by response timing.
+      await verifyPassword(args.password, DUMMY_PASSWORD_HASH);
       await recordLoginFailure(ctx, emailKey);
       if (deviceKey) await recordLoginFailure(ctx, deviceKey);
       return { ok: false as const, message: "Unable to sign in" };
@@ -406,6 +419,14 @@ export const updateRole = mutation({
   },
   handler: async (ctx, args) => {
     const session = await requireSession(ctx, args.sessionToken);
+    if (session.account.role === "dealer" && args.role !== "dealer") {
+      const depot = await dealerByOwner(ctx, session.account._id);
+      if (depot) {
+        throw new ConvexError(
+          "This account owns a depot. Ask an admin to change its role.",
+        );
+      }
+    }
     await ctx.db.patch(session.account._id, { role: args.role });
     await auditLog(ctx, { actorAccountId: session.account._id, action: "account:updateRole", targetType: "account", targetId: String(session.account._id), details: args.role });
   },

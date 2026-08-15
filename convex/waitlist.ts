@@ -104,11 +104,36 @@ async function accountSummary(ctx: any, accountId: Id<"accounts">) {
   };
 }
 
-/** Resolve the dealer owned by the session holder, or null. */
+/**
+ * Resolve the depot owned by the session holder regardless of approval
+ * status. Read-only surfaces (the dealer's own dashboard) may use this.
+ */
 async function dealerFromSession(ctx: any, token?: string) {
   const session = await optionalSession(ctx, token);
   if (!session) return null;
   return await dealerByOwner(ctx, session.account._id);
+}
+
+/**
+ * Same, but only for depots the admin has approved and that are active.
+ * Every state-changing depot operation and every consumer-data read goes
+ * through this so a pending or revoked depot cannot operate a queue.
+ */
+async function activeDealerFromSession(ctx: any, token?: string) {
+  const dealer = await dealerFromSession(ctx, token);
+  if (!dealer) return null;
+  if (!dealer.isActive || dealer.approvalStatus !== "approved") return null;
+  return dealer;
+}
+
+/** Mutation-side variant of activeDealerFromSession with clear errors. */
+async function requireActiveDealer(ctx: any, token?: string) {
+  const dealer = await dealerFromSession(ctx, token);
+  if (!dealer) throw new ConvexError("Not your depot");
+  if (!dealer.isActive || dealer.approvalStatus !== "approved") {
+    throw new ConvexError("Your depot is not approved for handing out cylinders yet");
+  }
+  return dealer;
 }
 
 async function allotOne(
@@ -143,6 +168,19 @@ async function allotOne(
   });
 }
 
+/** Fields safe to expose to unauthenticated/consumer callers. */
+function publicDealerFields(dealer: any) {
+  return {
+    _id: dealer._id,
+    businessName: dealer.businessName,
+    district: dealer.district,
+    address: dealer.address ?? null,
+    phone: dealer.phone ?? null,
+    stock: dealer.stock,
+    code: dealer.code,
+  };
+}
+
 export const listDealers = query({
   args: { district: v.optional(v.string()), search: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -164,7 +202,7 @@ export const listDealers = query({
           .query("waitlistEntries")
           .withIndex("by_dealer_status_created", (q) => q.eq("dealerId", dealer._id).eq("status", "waiting"))
           .collect();
-        return { ...dealer, waiting: waiting.length };
+        return { ...publicDealerFields(dealer), waiting: waiting.length };
       }),
     );
   },
@@ -172,12 +210,14 @@ export const listDealers = query({
 
 export const dealerByCode = query({
   args: { code: v.string() },
-  handler: async (ctx, args) =>
-    await ctx.db
+  handler: async (ctx, args) => {
+    const dealer = await ctx.db
       .query("dealers")
       .withIndex("by_code", (q) => q.eq("code", args.code.trim().toUpperCase()))
       .filter((q) => q.and(q.eq(q.field("approvalStatus"), "approved"), q.eq(q.field("isActive"), true)))
-      .first(),
+      .first();
+    return dealer ? publicDealerFields(dealer) : null;
+  },
 });
 
 export const activeForConsumer = query({
@@ -462,7 +502,7 @@ export const dealerQueue = query({
 export const consumerEntryForDealer = query({
   args: { sessionToken: v.optional(v.string()), dealerId: v.id("dealers"), consumerAccountId: v.optional(v.id("accounts")) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) return null;
     if (dealer._id !== args.dealerId) throw new ConvexError("Not your depot");
     const consumerAccountId = args.consumerAccountId;
@@ -483,7 +523,7 @@ export const consumerEntryForDealer = query({
 export const consumerOverviewForDealer = query({
   args: { sessionToken: v.optional(v.string()), dealerId: v.id("dealers"), consumerAccountId: v.optional(v.id("accounts")) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) return null;
     if (dealer._id !== args.dealerId) throw new ConvexError("Not your depot");
     const consumerAccountId = args.consumerAccountId;
@@ -603,8 +643,7 @@ export const addConsumerToQueue = mutation({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
-    if (!dealer) throw new ConvexError("Not your depot");
+    const dealer = await requireActiveDealer(ctx, args.sessionToken);
     if (!dealer.isActive || dealer.approvalStatus !== "approved") {
       throw new ConvexError("Depot is not accepting requests");
     }
@@ -667,8 +706,7 @@ export const addConsumerToQueue = mutation({
 export const allotEntry = mutation({
   args: { entryId: v.id("waitlistEntries"), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
-    if (!dealer) throw new ConvexError("Not your depot");
+    const dealer = await requireActiveDealer(ctx, args.sessionToken);
     const entry = await ctx.db.get(args.entryId);
     if (!entry) throw new ConvexError("Entry not found");
     if (entry.status !== "waiting") throw new ConvexError("Entry is not waiting");
@@ -686,8 +724,7 @@ export const bulkAllot = mutation({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
-    if (!dealer) throw new ConvexError("Not your depot");
+    const dealer = await requireActiveDealer(ctx, args.sessionToken);
     const ids = [...new Set(args.entryIds)];
     let stock = dealer.stock;
     let allotted = 0;
@@ -714,8 +751,7 @@ export const bulkAllot = mutation({
 export const autoAllotByStock = mutation({
   args: { sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
-    if (!dealer) throw new ConvexError("Not your depot");
+    const dealer = await requireActiveDealer(ctx, args.sessionToken);
     const waiting = (await ctx.db
       .query("waitlistEntries")
       .withIndex("by_dealer_status_created", (q) =>
@@ -779,8 +815,7 @@ async function completeCollection(
 export const collectEntry = mutation({
   args: { entryId: v.id("waitlistEntries"), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
-    if (!dealer) throw new ConvexError("Not your depot");
+    const dealer = await requireActiveDealer(ctx, args.sessionToken);
     const entry = await ctx.db.get(args.entryId);
     if (!entry) throw new ConvexError("Entry not found");
     if (entry.status !== "allotted") throw new ConvexError("Cylinder is not allotted yet");

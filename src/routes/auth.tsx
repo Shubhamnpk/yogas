@@ -55,7 +55,6 @@ function AuthPage() {
   const { user, role: myRole, loading, setSessionToken } = useAuth();
   const signUp = useMutation(api.app.signUp);
   const signIn = useMutation(api.app.signIn);
-  const ensureAdminAccount = useMutation(api.admin.ensureAdminAccount);
 
   useEffect(() => {
     if (!loading && user) {
@@ -116,9 +115,6 @@ function AuthPage() {
     setBusy(true);
     const deviceId = getDeviceId();
     try {
-      if (kind === "admin") {
-        await ensureAdminAccount({});
-      }
       const creds = DEMO_ACCOUNTS[kind];
       const result = await signIn({
         email: creds.email,
