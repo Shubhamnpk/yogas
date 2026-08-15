@@ -50,7 +50,16 @@ const requestSchema = z.object({
   note: z.string().trim().max(240).optional().or(z.literal("")),
 });
 
-type DealerRow = Doc<"dealers"> & { waiting?: number };
+type DealerRow = {
+  _id: Id<"dealers">;
+  businessName: string;
+  district: string;
+  address: string | null;
+  phone: string | null;
+  stock: number;
+  code: string;
+  waiting?: number;
+};
 
 function DealersPage() {
   const { depot } = Route.useSearch();

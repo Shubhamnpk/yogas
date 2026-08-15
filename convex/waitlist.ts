@@ -168,6 +168,19 @@ async function allotOne(
   });
 }
 
+/** Fields safe to expose to unauthenticated/consumer callers. */
+function publicDealerFields(dealer: any) {
+  return {
+    _id: dealer._id,
+    businessName: dealer.businessName,
+    district: dealer.district,
+    address: dealer.address ?? null,
+    phone: dealer.phone ?? null,
+    stock: dealer.stock,
+    code: dealer.code,
+  };
+}
+
 export const listDealers = query({
   args: { district: v.optional(v.string()), search: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -189,7 +202,7 @@ export const listDealers = query({
           .query("waitlistEntries")
           .withIndex("by_dealer_status_created", (q) => q.eq("dealerId", dealer._id).eq("status", "waiting"))
           .collect();
-        return { ...dealer, waiting: waiting.length };
+        return { ...publicDealerFields(dealer), waiting: waiting.length };
       }),
     );
   },
@@ -197,12 +210,14 @@ export const listDealers = query({
 
 export const dealerByCode = query({
   args: { code: v.string() },
-  handler: async (ctx, args) =>
-    await ctx.db
+  handler: async (ctx, args) => {
+    const dealer = await ctx.db
       .query("dealers")
       .withIndex("by_code", (q) => q.eq("code", args.code.trim().toUpperCase()))
       .filter((q) => q.and(q.eq(q.field("approvalStatus"), "approved"), q.eq(q.field("isActive"), true)))
-      .first(),
+      .first();
+    return dealer ? publicDealerFields(dealer) : null;
+  },
 });
 
 export const activeForConsumer = query({
