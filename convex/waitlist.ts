@@ -477,7 +477,7 @@ export const dealerQueue = query({
 export const consumerEntryForDealer = query({
   args: { sessionToken: v.optional(v.string()), dealerId: v.id("dealers"), consumerAccountId: v.optional(v.id("accounts")) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) return null;
     if (dealer._id !== args.dealerId) throw new ConvexError("Not your depot");
     const consumerAccountId = args.consumerAccountId;
@@ -498,7 +498,7 @@ export const consumerEntryForDealer = query({
 export const consumerOverviewForDealer = query({
   args: { sessionToken: v.optional(v.string()), dealerId: v.id("dealers"), consumerAccountId: v.optional(v.id("accounts")) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) return null;
     if (dealer._id !== args.dealerId) throw new ConvexError("Not your depot");
     const consumerAccountId = args.consumerAccountId;
@@ -618,7 +618,7 @@ export const addConsumerToQueue = mutation({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) throw new ConvexError("Not your depot");
     if (!dealer.isActive || dealer.approvalStatus !== "approved") {
       throw new ConvexError("Depot is not accepting requests");
@@ -682,7 +682,7 @@ export const addConsumerToQueue = mutation({
 export const allotEntry = mutation({
   args: { entryId: v.id("waitlistEntries"), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) throw new ConvexError("Not your depot");
     const entry = await ctx.db.get(args.entryId);
     if (!entry) throw new ConvexError("Entry not found");
@@ -701,7 +701,7 @@ export const bulkAllot = mutation({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) throw new ConvexError("Not your depot");
     const ids = [...new Set(args.entryIds)];
     let stock = dealer.stock;
@@ -729,7 +729,7 @@ export const bulkAllot = mutation({
 export const autoAllotByStock = mutation({
   args: { sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) throw new ConvexError("Not your depot");
     const waiting = (await ctx.db
       .query("waitlistEntries")
@@ -794,7 +794,7 @@ async function completeCollection(
 export const collectEntry = mutation({
   args: { entryId: v.id("waitlistEntries"), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const dealer = await dealerFromSession(ctx, args.sessionToken);
+    const dealer = await activeDealerFromSession(ctx, args.sessionToken);
     if (!dealer) throw new ConvexError("Not your depot");
     const entry = await ctx.db.get(args.entryId);
     if (!entry) throw new ConvexError("Entry not found");
