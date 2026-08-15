@@ -104,11 +104,26 @@ async function accountSummary(ctx: any, accountId: Id<"accounts">) {
   };
 }
 
-/** Resolve the dealer owned by the session holder, or null. */
+/**
+ * Resolve the depot owned by the session holder regardless of approval
+ * status. Read-only surfaces (the dealer's own dashboard) may use this.
+ */
 async function dealerFromSession(ctx: any, token?: string) {
   const session = await optionalSession(ctx, token);
   if (!session) return null;
   return await dealerByOwner(ctx, session.account._id);
+}
+
+/**
+ * Same, but only for depots the admin has approved and that are active.
+ * Every state-changing depot operation and every consumer-data read goes
+ * through this so a pending or revoked depot cannot operate a queue.
+ */
+async function activeDealerFromSession(ctx: any, token?: string) {
+  const dealer = await dealerFromSession(ctx, token);
+  if (!dealer) return null;
+  if (!dealer.isActive || dealer.approvalStatus !== "approved") return null;
+  return dealer;
 }
 
 async function allotOne(
