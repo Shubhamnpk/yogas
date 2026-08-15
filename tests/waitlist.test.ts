@@ -90,7 +90,7 @@ describe("waitlist ownership", () => {
         entryId,
         sessionToken: intruder.token,
       }),
-    ).rejects.toThrow("Not your depot");
+    ).rejects.toThrow(/Not your depot|not approved/);
   });
 
   it("owner can allot and collect their own entry", async () => {

@@ -54,7 +54,7 @@ describe("auth", () => {
       fullName: "Test Consumer 2",
     });
     expect(duplicate.ok).toBe(false);
-    expect(duplicate.message).toContain("An account with that email already exists");
+    expect(duplicate.message).toContain("could not create that account");
   });
 
   it("signIn succeeds with the correct password", async () => {
