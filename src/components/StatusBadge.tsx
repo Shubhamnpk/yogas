@@ -1,6 +1,6 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { EntryStatus } from "@/lib/gas";
-import { STATUS_LABEL } from "@/lib/gas";
 
 const TONE: Record<EntryStatus, string> = {
   waiting: "bg-warning/15 text-warning-foreground ring-warning/30",
@@ -9,7 +9,15 @@ const TONE: Record<EntryStatus, string> = {
   cancelled: "bg-destructive/10 text-destructive ring-destructive/25",
 };
 
+const STATUS_KEY: Record<EntryStatus, string> = {
+  waiting: "common:statusWaiting",
+  allotted: "common:statusAllotted",
+  collected: "common:statusCollected",
+  cancelled: "common:statusCancelled",
+};
+
 export function StatusBadge({ status, className }: { status: EntryStatus; className?: string }) {
+  const { t } = useTranslation();
   return (
     <span
       className={cn(
@@ -19,7 +27,7 @@ export function StatusBadge({ status, className }: { status: EntryStatus; classN
       )}
     >
       <span className="size-1.5 rounded-full bg-current" />
-      {STATUS_LABEL[status]}
+      {t(STATUS_KEY[status])}
     </span>
   );
 }

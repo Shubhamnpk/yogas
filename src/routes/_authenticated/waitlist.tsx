@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { ChevronRight, Loader2, Ticket } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -11,6 +12,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { RequestDetails, type RequestRow } from "@/components/RequestDetails";
 import { cn } from "@/lib/utils";
 import { friendlyError, timeAgo } from "@/lib/gas";
+import { formatNumber } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/waitlist")({
   head: () => ({
@@ -29,15 +31,12 @@ export const Route = createFileRoute("/_authenticated/waitlist")({
 
 type Tab = "active" | "allotted" | "collected" | "cancelled" | "all";
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "active", label: "Active" },
-  { key: "allotted", label: "Allotted" },
-  { key: "collected", label: "Collected" },
-  { key: "cancelled", label: "Cancelled" },
-  { key: "all", label: "All" },
-];
+const TABS: Tab[] = ["active", "allotted", "collected", "cancelled", "all"];
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function WaitlistPage() {
+  const { t } = useTranslation();
   const { user, sessionToken } = useAuth();
   const cancelEntry = useMutation(api.waitlist.cancelEntry);
   const confirmCollection = useMutation(api.waitlist.confirmCollection);
@@ -53,7 +52,7 @@ function WaitlistPage() {
       await cancelEntry(
         sessionToken ? { sessionToken, entryId: id } : { entryId: id as Id<"waitlistEntries"> },
       );
-      toast.success("Request cancelled");
+      toast.success(t("waitlist:requestCancelled"));
       setSelected(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not cancel request"));
@@ -67,7 +66,7 @@ function WaitlistPage() {
     setBusyId(id);
     try {
       await confirmCollection({ ...sessionArgs(sessionToken), entryId: id });
-      toast.success("Collection confirmed - cylinder handed over");
+      toast.success(t("waitlist:collectionConfirmed"));
       setSelected(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not confirm collection"));
@@ -105,14 +104,12 @@ function WaitlistPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Waitlist</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            A compact view of every request you have made across depots.
-          </p>
+          <h1 className="font-display text-3xl font-bold">{t("waitlist:title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("waitlist:subtitle")}</p>
         </div>
         <Button asChild variant="outline">
           <Link to="/dashboard">
-            <Ticket className="size-4" /> Back to dashboard
+            <Ticket className="size-4" /> {t("waitlist:backToDashboard")}
           </Link>
         </Button>
       </div>
@@ -124,26 +121,24 @@ function WaitlistPage() {
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
           <Ticket className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 font-semibold">No requests yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse depots or scan a depot code to join your first queue.
-          </p>
+          <p className="mt-3 font-semibold">{t("waitlist:noRequestsYet")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("waitlist:emptyBrowseHint")}</p>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {TABS.map((t) => (
+            {TABS.map((tabKey) => (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={tabKey}
+                onClick={() => setTab(tabKey)}
                 className={cn(
                   "rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 ring-inset transition-colors",
-                  tab === t.key
+                  tab === tabKey
                     ? "bg-primary text-primary-foreground ring-primary"
                     : "bg-card text-muted-foreground ring-border hover:bg-accent hover:text-accent-foreground",
                 )}
               >
-                {t.label} ({counts[t.key]})
+                {t(`waitlist:tab${capitalize(tabKey)}`)} ({counts[tabKey]})
               </button>
             ))}
           </div>
@@ -151,9 +146,11 @@ function WaitlistPage() {
           {visible.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
               <Ticket className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-3 font-semibold">Nothing here</p>
+              <p className="mt-3 font-semibold">{t("waitlist:nothingHere")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                No {tab === "active" ? "active" : tab} requests in this view.
+                {t("waitlist:noRequestsInView", {
+                  tab: t(`waitlist:tabName${capitalize(tab)}`),
+                })}
               </p>
             </div>
           ) : (
@@ -168,17 +165,20 @@ function WaitlistPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-semibold">
-                        {row.dealer?.businessName ?? "Depot"}
+                        {row.dealer?.businessName ?? t("common:depot")}
                       </p>
                       <StatusBadge status={row.status} />
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {row.dealer?.district ?? "Unknown district"} · {timeAgo(row.createdAt)}
+                      {row.dealer?.district ?? t("waitlist:unknownDistrict")} ·{" "}
+                      {timeAgo(row.createdAt)}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {row.status === "waiting" ? (
                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary ring-1 ring-inset ring-primary/25">
-                          #{row.position ?? "?"} in line
+                          {t("waitlist:positionInLine", {
+                            position: row.position != null ? formatNumber(row.position) : "?",
+                          })}
                         </span>
                       ) : null}
                       <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">

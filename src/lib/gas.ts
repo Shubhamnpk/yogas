@@ -1,3 +1,5 @@
+import i18n, { formatDate } from "./i18n";
+
 export type EntryStatus = "waiting" | "allotted" | "collected" | "cancelled";
 
 export type WaitlistEntry = {
@@ -119,25 +121,25 @@ export function maskCitizenship(value: string | null | undefined) {
 }
 
 export function stockLabel(stock: number) {
-  if (stock <= 0) return { label: "Out of stock", tone: "destructive" as const };
-  if (stock < 15) return { label: "Low stock", tone: "warning" as const };
-  return { label: "In stock", tone: "success" as const };
+  if (stock <= 0) return { key: "common:stockOut" as const, tone: "destructive" as const };
+  if (stock < 15) return { key: "common:stockLow" as const, tone: "warning" as const };
+  return { key: "common:stockIn" as const, tone: "success" as const };
 }
 
 export function timeAgo(value: string | number | Date) {
   const diff = Date.now() - new Date(value).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return i18n.t("common:timeJustNow");
+  if (mins < 60) return i18n.t("common:timeMinuteAgo", { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return i18n.t("common:timeHourAgo", { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(value).toLocaleDateString();
+  if (days < 30) return i18n.t("common:timeDayAgo", { count: days });
+  return formatDate(value, { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function formatDateTime(value: string | number | Date) {
-  return new Date(value).toLocaleString(undefined, {
+  return formatDate(value, {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -170,40 +172,39 @@ export function parseScanPayload(raw: string) {
 export const consumerQrValue = (userId: string) => `GQ-C:${userId}`;
 export const depotQrValue = (code: string) => `GQ-D:${code}`;
 
-const FRIENDLY_ERRORS: Record<string, string> = {
-  "Not signed in": "Please sign in and try again.",
-  "Depot is not accepting requests": "This depot isn't accepting requests right now.",
-  "Depot not found": "We couldn't find that depot.",
-  "Only 1 cylinder can be requested at a time": "Only one cylinder can be requested at a time.",
-  "You can request gas again after your cooling period ends":
-    "You're still in your cooling period after your last collection.",
+const ERROR_KEYS: Record<string, string> = {
+  "Not signed in": "common:errorsNotSignedIn",
+  "Depot is not accepting requests": "common:errorsDepotNotAccepting",
+  "Depot not found": "common:errorsDepotNotFound",
+  "Only 1 cylinder can be requested at a time": "common:errorsOneCylinderOnly",
+  "You can request gas again after your cooling period ends": "common:errorsCoolingPeriod",
   "You already have gas allotted. Collect it before requesting again.":
-    "You already have gas allotted - collect it before requesting another.",
-  "You are already in this depot queue.": "You're already in this depot's queue.",
-  "Not your depot": "That depot isn't yours to manage.",
-  "Consumer not found": "We couldn't find that consumer.",
-  "This account is not a consumer": "That account isn't a consumer profile.",
-  "Consumer profile is not complete": "That customer hasn't finished their profile yet.",
-  "This customer is still in their cooldown period": "That customer is still cooling down.",
-  "This customer already has gas allotted elsewhere":
-    "That customer already has gas allotted at another depot.",
-  "This customer is already in your queue": "That customer is already in your queue.",
-  "Entry not found": "That request no longer exists.",
-  "Entry is not waiting": "That request isn't waiting anymore.",
-  "Not enough stock": "There's not enough cylinder stock to allot that request.",
-  "Cylinder is not allotted yet": "That cylinder hasn't been allotted yet.",
-  "This is not your request": "That isn't your request.",
-  "Not allowed": "You're not allowed to do that.",
-  "Cannot cancel this request": "That request can't be cancelled right now.",
-  "Please add a reason for cancelling": "Please write a reason before cancelling.",
-  "That citizenship number is already in use": "That citizenship number is already registered.",
-  "Missing profile details": "Please complete your profile details first.",
-  "An account with that email already exists": "An account with that email already exists.",
-  "Use at least 8 characters": "Use at least 8 characters for your password.",
-  "Unable to sign in": "We couldn't sign you in. Check your email and password and try again.",
+    "common:errorsAlreadyAllotted",
+  "You are already in this depot queue.": "common:errorsAlreadyInQueue",
+  "Not your depot": "common:errorsNotYourDepot",
+  "Consumer not found": "common:errorsConsumerNotFound",
+  "This account is not a consumer": "common:errorsNotConsumer",
+  "Consumer profile is not complete": "common:errorsProfileIncomplete",
+  "This customer is still in their cooldown period": "common:errorsConsumerCooling",
+  "This customer already has gas allotted elsewhere": "common:errorsAllottedElsewhere",
+  "This customer is already in your queue": "common:errorsAlreadyInYourQueue",
+  "Entry not found": "common:errorsEntryNotFound",
+  "Entry is not waiting": "common:errorsEntryNotWaiting",
+  "Not enough stock": "common:errorsNotEnoughStock",
+  "Cylinder is not allotted yet": "common:errorsNotAllottedYet",
+  "This is not your request": "common:errorsNotYourRequest",
+  "Not allowed": "common:errorsNotAllowed",
+  "Cannot cancel this request": "common:errorsCannotCancel",
+  "Please add a reason for cancelling": "common:errorsReasonRequired",
+  "That citizenship number is already in use": "common:errorsCitizenshipTaken",
+  "Missing profile details": "common:errorsMissingProfile",
+  "An account with that email already exists": "common:errorsEmailExists",
+  "Use at least 8 characters": "common:errorsPasswordShort",
+  "Unable to sign in": "common:errorsSignInFailed",
 };
 
 export function friendlyError(error: unknown, fallback: string): string {
   const raw = error instanceof Error ? error.message.replace(/^Uncaught ConvexError:\s*/i, "") : "";
-  return FRIENDLY_ERRORS[raw] ?? fallback;
+  const key = ERROR_KEYS[raw];
+  return key ? i18n.t(key) : fallback;
 }

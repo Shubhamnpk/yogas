@@ -15,8 +15,10 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
+import i18n, { formatNumber } from "@/lib/i18n";
 import { useAuth, sessionArgs } from "@/lib/auth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CancelRequestModal } from "@/components/CancelRequestModal";
@@ -27,15 +29,15 @@ import { depotQrValue, friendlyError, timeAgo } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/dealer/")({
   head: () => ({
     meta: [
-      { title: "Depot home - YoGas" },
+      { title: i18n.t("dealer:depotHomeTitle") },
       {
         name: "description",
-        content: "Your depot at a glance - next up, stock and quick actions.",
+        content: i18n.t("dealer:depotHomeDescription"),
       },
-      { property: "og:title", content: "Depot home - YoGas" },
+      { property: "og:title", content: i18n.t("dealer:depotHomeTitle") },
       {
         property: "og:description",
-        content: "A compact console for waiting, allotted and collected requests.",
+        content: i18n.t("dealer:depotHomeOgDescription"),
       },
     ],
   }),
@@ -56,6 +58,7 @@ type QueueEntry = Doc<"waitlistEntries"> & {
 };
 
 function DealerHome() {
+  const { t } = useTranslation();
   const { dealer, user, sessionToken } = useAuth();
   const counts = useQuery(api.waitlist.dealerCounts, sessionToken ? { sessionToken } : "skip") ?? {
     waiting: 0,
@@ -83,7 +86,7 @@ function DealerHome() {
     setBusyId(id);
     try {
       await allotEntry({ ...sessionArgs(sessionToken), entryId: id });
-      toast.success("Cylinder allotted");
+      toast.success(t("dealer:cylinderAllotted"));
     } catch (error) {
       toast.error(friendlyError(error, "Could not update request"));
     } finally {
@@ -95,7 +98,7 @@ function DealerHome() {
     setBusyId(id);
     try {
       await cancelEntry({ ...sessionArgs(sessionToken), entryId: id, reason });
-      toast.success("Request cancelled");
+      toast.success(t("dealer:requestCancelled"));
       setCancelTarget(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not update request"));
@@ -111,39 +114,42 @@ function DealerHome() {
           <div>
             <p className="flex items-center gap-2 font-semibold text-warning-foreground">
               <AlertTriangle className="size-5 shrink-0 text-warning" />
-              Stock can't cover the queue
+              {t("dealer:stockCantCoverQueue")}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {counts.waiting} waiting but only {dealer.stock} cylinders in stock - allot as
-              cylinders arrive, or bump stock from the depot page before handover stalls.
+              {t("dealer:stockWarningBody", {
+                count: dealer.stock,
+                waiting: formatNumber(counts.waiting),
+              })}
             </p>
           </div>
           <Button asChild variant="outline" size="sm" className="sm:ml-auto sm:shrink-0">
-            <Link to="/dealer/stock">Update stock</Link>
+            <Link to="/dealer/stock">{t("dealer:updateStock")}</Link>
           </Button>
         </div>
       ) : null}
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-        <StatCard label="Cylinders in stock" value={dealer.stock} icon={PackageCheck} />
-        <StatCard label="Waiting" value={counts.waiting} icon={Users} />
-        <StatCard label="Ready to collect" value={counts.allotted} icon={Check} />
-        <StatCard label="History" value={counts.history} icon={Clock3} />
+        <StatCard label={t("dealer:cylindersInStock")} value={dealer.stock} icon={PackageCheck} />
+        <StatCard label={t("dealer:waiting")} value={counts.waiting} icon={Users} />
+        <StatCard label={t("dealer:readyToCollect")} value={counts.allotted} icon={Check} />
+        <StatCard label={t("dealer:history")} value={counts.history} icon={Clock3} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-soft">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Next in line</h2>
+              <h2 className="text-lg font-semibold">{t("dealer:nextInLine")}</h2>
               <p className="text-sm text-muted-foreground">
-                The waiting customers at your depot, in order.
+                {t("dealer:nextInLineSubtitle")}
               </p>
             </div>
             {counts.waiting > 0 ? (
               <Button asChild variant="ghost" size="sm">
                 <Link to="/dealer/waitlist">
-                  See all {counts.waiting} <ArrowRight className="ml-1 size-4" />
+                  {t("dealer:seeAll", { formatted: formatNumber(counts.waiting) })}{" "}
+                  <ArrowRight className="ml-1 size-4" />
                 </Link>
               </Button>
             ) : null}
@@ -168,37 +174,38 @@ function DealerHome() {
               {counts.waiting > 3 ? (
                 <Button asChild variant="ghost" size="sm" className="w-full">
                   <Link to="/dealer/waitlist">
-                    See the remaining {counts.waiting - 3} waiting customer
-                    {counts.waiting - 3 === 1 ? "" : "s"} <ArrowRight className="ml-1 size-4" />
+                    {t("dealer:remainingWaiting", {
+                      count: counts.waiting - 3,
+                      formatted: formatNumber(counts.waiting - 3),
+                    })}{" "}
+                    <ArrowRight className="ml-1 size-4" />
                   </Link>
                 </Button>
               ) : null}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-background px-6 py-8 text-center text-sm text-muted-foreground">
-              Nobody is waiting right now - share your depot code so consumers can join.
-            </div>
+                {t("dealer:nobodyWaiting")}
+              </div>
           )}
 
           <div className="grid gap-2 sm:grid-cols-2">
             <Button asChild variant="outline">
               <Link to="/dealer/waitlist">
-                <ClipboardList className="size-4" /> View full waitlist
+                <ClipboardList className="size-4" /> {t("dealer:viewFullWaitlist")}
               </Link>
             </Button>
             <Button asChild variant="outline">
               <Link to="/dealer/scan">
-                <ScanLine className="size-4" /> Verify or hand over
+                <ScanLine className="size-4" /> {t("dealer:verifyOrHandOver")}
               </Link>
             </Button>
           </div>
         </section>
 
         <aside className="h-fit rounded-2xl border border-border bg-card p-5 text-center shadow-soft">
-          <h2 className="font-semibold">Your depot code</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Print this. Consumers scan it to join your queue.
-          </p>
+          <h2 className="font-semibold">{t("dealer:yourDepotCode")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("dealer:printScanHint")}</p>
           <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-3">
             <QRCodeSVG value={depotQrValue(dealer.code)} size={128} level="M" />
           </div>
@@ -212,24 +219,29 @@ function DealerHome() {
             }
           >
             {counts.waiting === 0
-              ? "Queue is empty - share your code so consumers can join."
+              ? t("dealer:queueEmpty")
               : covered
-                ? `Stock covers the ${counts.waiting} waiting request${counts.waiting === 1 ? "" : "s"}.`
-                : `Short by ${counts.waiting - dealer.stock} cylinder${counts.waiting - dealer.stock === 1 ? "" : "s"} for the waiting queue.`}
+                ? t("dealer:stockCoversWaiting", {
+                    count: counts.waiting,
+                    formatted: formatNumber(counts.waiting),
+                  })
+                : t("dealer:shortByCylinders", {
+                    count: counts.waiting - dealer.stock,
+                    formatted: formatNumber(counts.waiting - dealer.stock),
+                  })}
           </p>
           <p className="mt-3 rounded-xl border border-dashed border-border px-3 py-2 text-left text-xs text-muted-foreground">
-            Cooldown is enforced automatically after collection. A customer cannot rejoin until the
-            cooling period ends.
+            {t("dealer:cooldownNote")}
           </p>
           <Button asChild variant="outline" className="mt-4 w-full">
-            <Link to="/dealer/waitlist">Go to waitlist</Link>
+            <Link to="/dealer/waitlist">{t("dealer:goToWaitlist")}</Link>
           </Button>
         </aside>
       </div>
 
       <CancelRequestModal
         open={cancelTarget !== null}
-        consumerName={cancelTarget?.consumer?.fullName ?? "the customer"}
+        consumerName={cancelTarget?.consumer?.fullName ?? t("dealer:theCustomer")}
         busy={cancelTarget !== null && busyId === cancelTarget._id}
         onClose={() => setCancelTarget(null)}
         onConfirm={(reason) => {
@@ -253,17 +265,18 @@ function WaitingEntryCard({
   onAllot: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(false);
 
-  const name = entry.consumer?.fullName ?? "Consumer";
-  const meta = `${entry.quantity} x ${entry.cylinderSize} · ${timeAgo(entry.createdAt)}`;
+  const name = entry.consumer?.fullName ?? t("dealer:consumer");
+  const meta = `${formatNumber(entry.quantity)} x ${entry.cylinderSize} · ${timeAgo(entry.createdAt)}`;
 
   if (!isMobile) {
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-base font-bold text-primary-foreground">
-          #{entry.position ?? "?"}
+          #{entry.position ? formatNumber(entry.position) : "?"}
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{name}</p>
@@ -275,10 +288,10 @@ function WaitingEntryCard({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button onClick={onAllot} disabled={busy || !covered}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-            {covered ? "Allot" : "Out of stock"}
+            {covered ? t("dealer:allot") : t("common:stockOut")}
           </Button>
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            Cancel
+            {t("common:cancel")}
           </Button>
         </div>
       </div>
@@ -307,7 +320,7 @@ function WaitingEntryCard({
               : "bg-secondary text-secondary-foreground",
           )}
         >
-          #{entry.position ?? "?"}
+          #{entry.position ? formatNumber(entry.position) : "?"}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{name}</span>
@@ -330,10 +343,10 @@ function WaitingEntryCard({
           <div className="mt-3 flex gap-2">
             <Button onClick={onAllot} disabled={busy || !covered} className="flex-1">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-              {covered ? "Allot" : "Out of stock"}
+              {covered ? t("dealer:allot") : t("common:stockOut")}
             </Button>
             <Button variant="ghost" onClick={onCancel} disabled={busy}>
-              Cancel
+              {t("common:cancel")}
             </Button>
           </div>
         </div>

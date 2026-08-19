@@ -12,8 +12,10 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
+import i18n, { formatNumber } from "@/lib/i18n";
 import { useAuth, sessionArgs } from "@/lib/auth";
 import { CancelRequestModal } from "@/components/CancelRequestModal";
 import { Button } from "@/components/ui/button";
@@ -32,15 +34,15 @@ import { formatDateTime, friendlyError, maskCitizenship, timeAgo } from "@/lib/g
 export const Route = createFileRoute("/_authenticated/dealer/waitlist")({
   head: () => ({
     meta: [
-      { title: "Waitlist - YoGas" },
+      { title: i18n.t("dealer:waitlistTitle") },
       {
         name: "description",
-        content: "Search, filter and allot requests at your depot in one view.",
+        content: i18n.t("dealer:waitlistDescription"),
       },
-      { property: "og:title", content: "Waitlist - YoGas" },
+      { property: "og:title", content: i18n.t("dealer:waitlistTitle") },
       {
         property: "og:description",
-        content: "Search, filter, allot and collect requests across your queue.",
+        content: i18n.t("dealer:waitlistOgDescription"),
       },
     ],
   }),
@@ -63,14 +65,15 @@ type Row = Doc<"waitlistEntries"> & {
 type Tab = "all" | "waiting" | "allotted" | "collected" | "cancelled";
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "waiting", label: "Waiting" },
-  { key: "allotted", label: "Allotted" },
-  { key: "collected", label: "Collected" },
-  { key: "cancelled", label: "Cancelled" },
+  { key: "all", label: "dealer:tabAll" },
+  { key: "waiting", label: "dealer:tabWaiting" },
+  { key: "allotted", label: "dealer:tabAllotted" },
+  { key: "collected", label: "dealer:tabCollected" },
+  { key: "cancelled", label: "dealer:tabCancelled" },
 ];
 
 function DealerWaitlistPage() {
+  const { t } = useTranslation();
   const { dealer, user, sessionToken } = useAuth();
   const allotEntry = useMutation(api.waitlist.allotEntry);
   const collectEntry = useMutation(api.waitlist.collectEntry);
@@ -148,7 +151,7 @@ function DealerWaitlistPage() {
       } else {
         await collectEntry({ ...sessionArgs(sessionToken), entryId: id });
       }
-      toast.success(fn === "allot" ? "Cylinder allotted" : "Marked collected");
+      toast.success(fn === "allot" ? t("dealer:cylinderAllotted") : t("dealer:markedCollected"));
     } catch (error) {
       toast.error(friendlyError(error, "Could not update request"));
     } finally {
@@ -161,7 +164,7 @@ function DealerWaitlistPage() {
     setBusyId(id);
     try {
       await cancelEntry({ ...sessionArgs(sessionToken), entryId: id, reason });
-      toast.success("Request cancelled");
+      toast.success(t("dealer:requestCancelled"));
       setCancelTarget(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not update request"));
@@ -200,9 +203,19 @@ function DealerWaitlistPage() {
         entryIds: selectedWaiting.map((r) => r._id),
       });
       setSelected(new Set());
-      toast.success(`Allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"}.`);
+      toast.success(
+        t("dealer:allottedCylinders", {
+          count: result.allotted,
+          formatted: formatNumber(result.allotted),
+        }),
+      );
       if (result.skipped > 0) {
-        toast.warning(`${result.skipped} could not be allotted (no longer waiting or no stock).`);
+        toast.warning(
+          t("dealer:skippedAllot", {
+            count: result.skipped,
+            formatted: formatNumber(result.skipped),
+          }),
+        );
       }
     } catch (error) {
       toast.error(friendlyError(error, "Could not allot the selection"));
@@ -220,7 +233,10 @@ function DealerWaitlistPage() {
     try {
       const result = await autoAllot({ ...sessionArgs(sessionToken) });
       toast.success(
-        `Auto-allotted ${result.allotted} cylinder${result.allotted === 1 ? "" : "s"} right now - the next customers are now allotted.`,
+        t("dealer:autoAllotted", {
+          count: result.allotted,
+          formatted: formatNumber(result.allotted),
+        }),
       );
     } catch (error) {
       toast.error(friendlyError(error, "Could not auto-allot"));
@@ -233,20 +249,22 @@ function DealerWaitlistPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Waitlist</h1>
+          <h1 className="font-display text-3xl font-bold">{t("dealer:waitlist")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Search, filter and allot every request at {dealer?.business_name ?? "your depot"}.
+            {t("dealer:searchFilterIntro", {
+              depot: dealer?.business_name ?? t("dealer:yourDepot"),
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline">
             <Link to="/dealer/scan">
-              <ScanLine className="size-4" /> Scan consumer
+              <ScanLine className="size-4" /> {t("dealer:scanConsumer")}
             </Link>
           </Button>
           <Button asChild variant="outline">
             <Link to="/dealer">
-              <Ticket className="size-4" /> Back to home
+              <Ticket className="size-4" /> {t("dealer:backToHome")}
             </Link>
           </Button>
         </div>
@@ -258,18 +276,18 @@ function DealerWaitlistPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, citizenship, phone, note"
+            placeholder={t("dealer:searchPlaceholder")}
             className="pl-9"
           />
         </div>
         <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
-          <SelectTrigger className="w-[170px]" aria-label="Sort waitlist">
-            <SelectValue placeholder="Sort" />
+          <SelectTrigger className="w-[170px]" aria-label={t("dealer:sortWaitlist")}>
+            <SelectValue placeholder={t("dealer:sort")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="rank">Queue order</SelectItem>
-            <SelectItem value="newest">Newest first</SelectItem>
-            <SelectItem value="oldest">Oldest first</SelectItem>
+            <SelectItem value="rank">{t("dealer:queueOrder")}</SelectItem>
+            <SelectItem value="newest">{t("dealer:newestFirst")}</SelectItem>
+            <SelectItem value="oldest">{t("dealer:oldestFirst")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -279,9 +297,10 @@ function DealerWaitlistPage() {
           <p className="flex items-center gap-2 text-sm">
             <CheckCheck className="size-4 shrink-0 text-success" />
             <span>
-              <span className="font-semibold">{tabCounts.waiting}</span> waiting ·{" "}
-              <span className="font-semibold">{stock}</span> in stock - allot in queue order to
-              match your stock.
+              {t("dealer:queueOrderHint", {
+                waiting: formatNumber(tabCounts.waiting),
+                stock: formatNumber(stock),
+              })}
             </span>
           </p>
           <div className="ml-auto">
@@ -291,25 +310,25 @@ function DealerWaitlistPage() {
               disabled={autoBusy || stock === 0}
             >
               {autoBusy ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
-              Auto-allot by stock
+              {t("dealer:autoAllotByStock")}
             </Button>
           </div>
         </div>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={tabItem.key}
+            onClick={() => setTab(tabItem.key)}
             className={cn(
               "rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 ring-inset transition-colors",
-              tab === t.key
+              tab === tabItem.key
                 ? "bg-primary text-primary-foreground ring-primary"
                 : "bg-card text-muted-foreground ring-border hover:bg-accent hover:text-accent-foreground",
             )}
           >
-            {t.label} ({tabCounts[t.key]})
+            {t(tabItem.label)} ({formatNumber(tabCounts[tabItem.key])})
           </button>
         ))}
       </div>
@@ -317,10 +336,10 @@ function DealerWaitlistPage() {
       {selectedWaiting.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3">
           <p className="text-sm">
-            <span className="font-semibold">{selectedWaiting.length}</span> selected ·{" "}
-            <span className="font-semibold">{selectedQty}</span> cylinder
-            {selectedQty === 1 ? "" : "s"}
-            {stock > 0 ? ` · stock left ${stock}` : ""}
+            <span className="font-semibold">{formatNumber(selectedWaiting.length)}</span>{" "}
+            {t("dealer:selected")} · <span className="font-semibold">{formatNumber(selectedQty)}</span>{" "}
+            {t("dealer:cylinders", { count: selectedQty })}
+            {stock > 0 ? ` · ${t("dealer:stockLeft", { formatted: formatNumber(stock) })}` : ""}
           </p>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -329,7 +348,7 @@ function DealerWaitlistPage() {
               onClick={() => setSelected(new Set())}
               disabled={bulkBusy}
             >
-              Clear
+              {t("dealer:clear")}
             </Button>
             <Button
               size="sm"
@@ -341,7 +360,7 @@ function DealerWaitlistPage() {
               ) : (
                 <CheckCheck className="size-4" />
               )}
-              {selectedQty > stock ? "Not enough stock" : "Allot selected"}
+              {selectedQty > stock ? t("dealer:notEnoughStock") : t("dealer:allotSelected")}
             </Button>
           </div>
         </div>
@@ -354,9 +373,9 @@ function DealerWaitlistPage() {
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
           <Ticket className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 font-semibold">No requests in this view</p>
+          <p className="mt-3 font-semibold">{t("dealer:noRequestsInView")}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Try a different filter or search term.
+            {t("dealer:tryDifferentFilter")}
           </p>
         </div>
       ) : (
@@ -372,17 +391,17 @@ function DealerWaitlistPage() {
                         checked={allShownPicked}
                         onChange={toggleAllShown}
                         className="size-4 accent-primary"
-                        aria-label="Select all waiting shown"
+                        aria-label={t("dealer:selectAllWaitingShown")}
                       />
                     ) : null}
                   </th>
                   <th className="border-b border-border px-4 py-3">#</th>
-                  <th className="border-b border-border px-4 py-3">Consumer</th>
-                  <th className="border-b border-border px-4 py-3">Citizenship</th>
-                  <th className="border-b border-border px-4 py-3">Status</th>
-                  <th className="border-b border-border px-4 py-3">Qty</th>
-                  <th className="border-b border-border px-4 py-3">Requested</th>
-                  <th className="border-b border-border px-4 py-3">Updated</th>
+                  <th className="border-b border-border px-4 py-3">{t("dealer:consumer")}</th>
+                  <th className="border-b border-border px-4 py-3">{t("dealer:citizenship")}</th>
+                  <th className="border-b border-border px-4 py-3">{t("common:status")}</th>
+                  <th className="border-b border-border px-4 py-3">{t("dealer:qty")}</th>
+                  <th className="border-b border-border px-4 py-3">{t("common:requested")}</th>
+                  <th className="border-b border-border px-4 py-3">{t("dealer:updated")}</th>
                   <th className="border-b border-border px-4 py-3" />
                 </tr>
               </thead>
@@ -396,7 +415,9 @@ function DealerWaitlistPage() {
                           checked={selected.has(row._id)}
                           onChange={() => toggleSelected(row._id)}
                           className="size-4 accent-primary"
-                          aria-label={`Select ${row.consumer?.fullName ?? "consumer"}`}
+                          aria-label={t("dealer:selectConsumer", {
+                            name: row.consumer?.fullName ?? t("dealer:consumer"),
+                          })}
                         />
                       ) : null}
                     </td>
@@ -410,16 +431,16 @@ function DealerWaitlistPage() {
                               : "bg-secondary text-secondary-foreground",
                           )}
                         >
-                          {row.position ?? "?"}
+                          {row.position ? formatNumber(row.position) : "?"}
                         </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </td>
                     <td className="border-b border-border px-4 py-4">
-                      <p className="font-medium">{row.consumer?.fullName ?? "Consumer"}</p>
+                      <p className="font-medium">{row.consumer?.fullName ?? t("dealer:consumer")}</p>
                       <p className="text-xs text-muted-foreground">
-                        {row.consumer?.address ?? "No address"}
+                        {row.consumer?.address ?? t("dealer:noAddress")}
                         {row.note ? ` · “${row.note}”` : ""}
                       </p>
                     </td>
@@ -454,15 +475,15 @@ function DealerWaitlistPage() {
                               ) : (
                                 <Check className="size-4" />
                               )}
-                              {stock < row.quantity ? "No stock" : "Allot"}
+                              {stock < row.quantity ? t("dealer:noStock") : t("dealer:allot")}
                             </Button>
-                            <Button
+<Button
                               size="sm"
                               variant="ghost"
                               onClick={() => setCancelTarget(row)}
                               disabled={busyId === row._id}
                             >
-                              Cancel
+                              {t("common:cancel")}
                             </Button>
                           </>
                         ) : row.status === "allotted" ? (
@@ -477,7 +498,7 @@ function DealerWaitlistPage() {
                               ) : (
                                 <PackageCheck className="size-4" />
                               )}{" "}
-                              Collect
+                              {t("dealer:collect")}
                             </Button>
                             <Button
                               size="sm"
@@ -485,7 +506,7 @@ function DealerWaitlistPage() {
                               onClick={() => setCancelTarget(row)}
                               disabled={busyId === row._id}
                             >
-                              Cancel
+                              {t("common:cancel")}
                             </Button>
                           </>
                         ) : null}
@@ -497,8 +518,11 @@ function DealerWaitlistPage() {
             </table>
           </div>
           <p className="px-1 text-center text-xs text-muted-foreground">
-            Showing {filtered.length} of {tabCounts[tab]} request
-            {tabCounts[tab] === 1 ? "" : "s"}.
+            {t("dealer:showingRequests", {
+              count: tabCounts[tab],
+              shown: formatNumber(filtered.length),
+              total: formatNumber(tabCounts[tab]),
+            })}
           </p>
           {queue.status === "CanLoadMore" ? (
             <Button
@@ -512,7 +536,7 @@ function DealerWaitlistPage() {
               ) : (
                 <Check className="size-4" />
               )}
-              Load more
+              {t("dealer:loadMore")}
             </Button>
           ) : null}
         </div>
@@ -520,7 +544,7 @@ function DealerWaitlistPage() {
 
       <CancelRequestModal
         open={cancelTarget !== null}
-        consumerName={cancelTarget?.consumer?.fullName ?? "the customer"}
+        consumerName={cancelTarget?.consumer?.fullName ?? t("dealer:theCustomer")}
         busy={cancelTarget !== null && busyId === cancelTarget._id}
         onClose={() => setCancelTarget(null)}
         onConfirm={(reason) => {

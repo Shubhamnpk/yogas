@@ -18,9 +18,11 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useAuth, sessionArgs } from "@/lib/auth";
+import i18n, { formatDate, formatNumber } from "@/lib/i18n";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RequestDetails } from "@/components/RequestDetails";
 import { SwipeableCards } from "@/components/SwipeableCards";
@@ -47,10 +49,10 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Your dashboard - YoGas" },
-      { name: "description", content: "A quick summary of your LPG queue activity." },
-      { property: "og:title", content: "Your dashboard - YoGas" },
-      { property: "og:description", content: "A quick summary of your LPG queue activity." },
+      { title: i18n.t("dashboard:headTitle") },
+      { name: "description", content: i18n.t("dashboard:headDescription") },
+      { property: "og:title", content: i18n.t("dashboard:headTitle") },
+      { property: "og:description", content: i18n.t("dashboard:headDescription") },
     ],
   }),
   component: Dashboard,
@@ -63,6 +65,7 @@ function Dashboard() {
 }
 
 function ConsumerDashboard() {
+  const { t } = useTranslation();
   const { user, profile, sessionToken } = useAuth();
   const stats = useQuery(api.waitlist.consumerStats, sessionToken ? { sessionToken } : "skip");
   const purchase = useQuery(
@@ -78,6 +81,7 @@ function ConsumerDashboard() {
   );
   const activeRequests =
     requests?.filter((r) => r.status === "waiting" || r.status === "allotted") ?? [];
+  const depotCount = new Set(activeRequests.map((r) => String(r.dealerId))).size;
   const [selected, setSelected] = useState<
     | (Doc<"waitlistEntries"> & { dealer: Doc<"dealers"> | null; position: number | undefined })
     | null
@@ -88,7 +92,7 @@ function ConsumerDashboard() {
     setBusyId(entryId);
     try {
       await cancelEntry({ ...sessionArgs(sessionToken), entryId });
-      toast.success("Request cancelled");
+      toast.success(t("dashboard:requestCancelled"));
       setSelected(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not cancel request"));
@@ -102,7 +106,7 @@ function ConsumerDashboard() {
     setBusyId(entryId);
     try {
       await confirmCollection({ ...sessionArgs(sessionToken), entryId });
-      toast.success("Collection confirmed - cylinder handed over");
+      toast.success(t("dashboard:collectionConfirmed"));
       setSelected(null);
     } catch (error) {
       toast.error(friendlyError(error, "Could not confirm collection"));
@@ -116,18 +120,20 @@ function ConsumerDashboard() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold">
-            Namaste, {profile?.full_name?.split(" ")[0] ?? "friend"}
+            {t("dashboard:greeting", {
+              name: profile?.full_name?.split(" ")[0] ?? t("dashboard:greetingFallbackName"),
+            })}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {stats === undefined
-              ? "Loading your queue summary..."
-              : `You have ${stats.active} active request${stats.active === 1 ? "" : "s"}.`}
+              ? t("dashboard:loadingQueueSummary")
+              : t("dashboard:activeCount", { count: stats.active })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link to="/waitlist">
-              <Ticket className="size-4" /> View waitlist
+              <Ticket className="size-4" /> {t("dashboard:viewWaitlist")}
             </Link>
           </Button>
           <Button asChild>
@@ -149,25 +155,32 @@ function ConsumerDashboard() {
               items={[
                 {
                   id: "active",
-                  title: "Active requests",
-                  value: String(stats.active),
-                  sub: `${stats.waiting} waiting · ${stats.allotted} allotted`,
+                  title: t("dashboard:activeRequests"),
+                  value: formatNumber(stats.active),
+                  sub: t("dashboard:waitingAllotted", {
+                    waiting: formatNumber(stats.waiting),
+                    allotted: formatNumber(stats.allotted),
+                  }),
                   icon: Ticket,
                 },
                 {
                   id: "collected",
-                  title: "Cylinders collected",
-                  value: String(purchase?.totalQuantity ?? 0),
+                  title: t("dashboard:cylindersCollected"),
+                  value: formatNumber(purchase?.totalQuantity ?? 0),
                   icon: PackageCheck,
                 },
               ]}
             />
           </div>
           <div className="hidden grid-cols-4 gap-3 lg:grid">
-            <StatCard label="Active requests" value={stats.active} icon={Ticket} />
-            <StatCard label="Waiting" value={stats.waiting} icon={Users} />
-            <StatCard label="Allotted" value={stats.allotted} icon={Check} />
-            <StatCard label="Cylinders collected" value={purchase?.totalQuantity ?? 0} icon={PackageCheck} />
+            <StatCard label={t("dashboard:activeRequests")} value={stats.active} icon={Ticket} />
+            <StatCard label={t("dashboard:waiting")} value={stats.waiting} icon={Users} />
+            <StatCard label={t("dashboard:allotted")} value={stats.allotted} icon={Check} />
+            <StatCard
+              label={t("dashboard:cylindersCollected")}
+              value={purchase?.totalQuantity ?? 0}
+              icon={PackageCheck}
+            />
           </div>
         </>
       )}
@@ -176,18 +189,21 @@ function ConsumerDashboard() {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="font-semibold">Your waitlist</h2>
+              <h2 className="font-semibold">{t("dashboard:yourWaitlist")}</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {requests === undefined
-                  ? "Loading your requests..."
+                  ? t("dashboard:loadingRequests")
                   : activeRequests.length > 0
-                    ? `${activeRequests.length} active request${activeRequests.length === 1 ? "" : "s"} across ${new Set(activeRequests.map((r) => String(r.dealerId))).size} depot${new Set(activeRequests.map((r) => String(r.dealerId))).size === 1 ? "" : "s"}.`
-                    : "No active requests - join a queue to get gas."}
+                    ? t("dashboard:activeAcross", {
+                        count: activeRequests.length,
+                        depots: formatNumber(depotCount),
+                      })
+                    : t("dashboard:noActiveRequests")}
               </p>
             </div>
             <Button asChild variant="outline" size="sm">
               <Link to="/waitlist">
-                <Ticket className="size-4" /> View all
+                <Ticket className="size-4" /> {t("dashboard:viewAll")}
               </Link>
             </Button>
           </div>
@@ -199,13 +215,13 @@ function ConsumerDashboard() {
           ) : activeRequests.length === 0 ? (
             <div className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center">
               <Ticket className="mx-auto size-7 text-muted-foreground" />
-              <p className="mt-2 text-sm font-semibold">You haven't joined any queue yet</p>
+              <p className="mt-2 text-sm font-semibold">{t("dashboard:noQueuesJoined")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Browse depots or scan a depot code to join your first waitlist.
+                {t("dashboard:browseDepotsHint")}
               </p>
               <Button asChild className="mt-4">
                 <Link to="/dealers">
-                  <Search className="size-4" /> Find a depot
+                  <Search className="size-4" /> {t("dashboard:findDepot")}
                 </Link>
               </Button>
             </div>
@@ -219,15 +235,19 @@ function ConsumerDashboard() {
                   className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{row.dealer?.businessName ?? "Depot"}</p>
+                    <p className="truncate font-medium">
+                      {row.dealer?.businessName ?? t("dashboard:depot")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {row.dealer?.district ?? "Unknown district"}
+                      {row.dealer?.district ?? t("dashboard:unknownDistrict")}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     {row.status === "waiting" ? (
                       <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary ring-1 ring-inset ring-primary/25">
-                        #{row.position ?? "?"} in line
+                        {row.position
+                          ? t("dashboard:inLine", { position: formatNumber(row.position) })
+                          : t("dashboard:inLineUnknown")}
                       </span>
                     ) : null}
                     <StatusBadge status={row.status} />
@@ -242,8 +262,8 @@ function ConsumerDashboard() {
         </div>
 
         <aside className="h-fit rounded-2xl border border-border bg-card p-6 text-center shadow-soft">
-          <h2 className="font-semibold">Your collection code</h2>
-          <p className="mt-1 text-sm text-muted-foreground">The dealer scans this to verify you.</p>
+          <h2 className="font-semibold">{t("dashboard:collectionCode")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("dashboard:collectionCodeHint")}</p>
           <div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-4">
             {user ? (
               <QRCodeSVG value={consumerQrValue(user.accountId)} size={128} level="M" />
@@ -251,27 +271,27 @@ function ConsumerDashboard() {
           </div>
           <p className="mt-4 text-sm font-semibold">{profile?.full_name}</p>
           <p className="text-xs text-muted-foreground">
-            Citizenship {maskCitizenship(profile?.citizenship_no)}
+            {t("dashboard:citizenship")} {maskCitizenship(profile?.citizenship_no)}
           </p>
           <div className="mt-4 rounded-xl border border-dashed border-border px-3 py-2 text-left text-sm">
-            <p className="font-medium">Purchase history</p>
+            <p className="font-medium">{t("dashboard:purchaseHistory")}</p>
             <p className="text-muted-foreground">
               {purchase === undefined
-                ? "Loading history..."
+                ? t("dashboard:loadingHistory")
                 : purchase.totalPurchases > 0
-                  ? `${purchase.totalPurchases} completed purchase${purchase.totalPurchases === 1 ? "" : "s"} so far.`
-                  : "No completed purchases yet."}
+                  ? t("dashboard:completedPurchases", { count: purchase.totalPurchases })
+                  : t("dashboard:noCompletedPurchases")}
             </p>
             {purchase?.lastCollectedAt ? (
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock3 className="size-3.5" />
-                Last collected {new Date(purchase.lastCollectedAt).toLocaleDateString()}
+                {t("dashboard:lastCollected", { date: formatDate(purchase.lastCollectedAt) })}
               </p>
             ) : null}
             {purchase?.user?.cooldownUntil && purchase.user.cooldownUntil > Date.now() ? (
               <p className="mt-1 flex items-center gap-1 text-xs text-warning">
                 <PackageCheck className="size-3.5" />
-                Rejoin after {new Date(purchase.user.cooldownUntil).toLocaleDateString()}
+                {t("dashboard:rejoinAfter", { date: formatDate(purchase.user.cooldownUntil) })}
               </p>
             ) : null}
           </div>
@@ -290,6 +310,7 @@ function ConsumerDashboard() {
 }
 
 function AdminDashboard() {
+  const { t } = useTranslation();
   const { user, sessionToken } = useAuth();
   const opts = sessionToken ? { sessionToken } : "skip";
   const stats = useQuery(api.admin.dashboardStats, opts);
@@ -341,9 +362,11 @@ function AdminDashboard() {
     setBusy(dealerId);
     try {
       await reviewDealer({ ...sessionArgs(sessionToken), dealerId, decision });
-      toast.success(decision === "approved" ? "Depot approved" : "Depot rejected");
+      toast.success(
+        decision === "approved" ? t("dashboard:depotApproved") : t("dashboard:depotRejected"),
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : t("dashboard:somethingWentWrong"));
     } finally {
       setBusy(null);
     }
@@ -354,9 +377,9 @@ function AdminDashboard() {
     setBusy(dealerId);
     try {
       await unapproveDealer({ ...sessionArgs(sessionToken), dealerId });
-      toast.success("Depot unapproved");
+      toast.success(t("dashboard:depotUnapproved"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : t("dashboard:somethingWentWrong"));
     } finally {
       setBusy(null);
     }
@@ -364,13 +387,13 @@ function AdminDashboard() {
 
   const handleDeleteDealer = async (dealerId: Id<"dealers">) => {
     if (!user) return;
-    if (!window.confirm("Delete this depot? Its waitlist entries will be cancelled.")) return;
+    if (!window.confirm(t("dashboard:confirmDeleteDepot"))) return;
     setBusy(dealerId);
     try {
       await deleteDealer({ ...sessionArgs(sessionToken), dealerId });
-      toast.success("Depot deleted");
+      toast.success(t("dashboard:depotDeleted"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : t("dashboard:somethingWentWrong"));
     } finally {
       setBusy(null);
     }
@@ -381,9 +404,9 @@ function AdminDashboard() {
     setBusy(entryId);
     try {
       await adminCancelEntry({ ...sessionArgs(sessionToken), entryId });
-      toast.success("Waitlist entry cancelled");
+      toast.success(t("dashboard:entryCancelled"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not cancel entry");
+      toast.error(err instanceof Error ? err.message : t("dashboard:couldNotCancelEntry"));
     } finally {
       setBusy(null);
     }
@@ -391,13 +414,13 @@ function AdminDashboard() {
 
   const handleDeleteUser = async (userId: Id<"users">) => {
     if (!user) return;
-    if (!window.confirm("Delete this consumer account? All associated entries will be cancelled.")) return;
+    if (!window.confirm(t("dashboard:confirmDeleteConsumer"))) return;
     setBusy(userId);
     try {
       await deleteUser({ ...sessionArgs(sessionToken), userId });
-      toast.success("Consumer account deleted");
+      toast.success(t("dashboard:consumerAccountDeleted"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not delete consumer");
+      toast.error(err instanceof Error ? err.message : t("dashboard:couldNotDeleteConsumer"));
     } finally {
       setBusy(null);
     }
@@ -408,10 +431,14 @@ function AdminDashboard() {
     setBusy("bulk");
     try {
       await bulkReview({ ...sessionArgs(sessionToken), dealerIds: selectedDealers, decision });
-      toast.success(`${selectedDealers.length} depots ${decision}`);
+      toast.success(
+        t(decision === "approved" ? "dashboard:depotsApproved" : "dashboard:depotsRejected", {
+          count: selectedDealers.length,
+        }),
+      );
       setSelectedDealers([]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk action failed");
+      toast.error(err instanceof Error ? err.message : t("dashboard:bulkActionFailed"));
     } finally {
       setBusy(null);
     }
@@ -419,14 +446,17 @@ function AdminDashboard() {
 
   const handleBulkDeleteDealers = async () => {
     if (!user || selectedDealers.length === 0) return;
-    if (!window.confirm(`Delete ${selectedDealers.length} selected depots?`)) return;
+    if (
+      !window.confirm(t("dashboard:confirmDeleteSelectedDepots", { count: selectedDealers.length }))
+    )
+      return;
     setBusy("bulk");
     try {
       await bulkDelete({ ...sessionArgs(sessionToken), dealerIds: selectedDealers });
-      toast.success(`${selectedDealers.length} depots deleted`);
+      toast.success(t("dashboard:depotsDeleted", { count: selectedDealers.length }));
       setSelectedDealers([]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk delete failed");
+      toast.error(err instanceof Error ? err.message : t("dashboard:bulkDeleteFailed"));
     } finally {
       setBusy(null);
     }
@@ -437,10 +467,10 @@ function AdminDashboard() {
     setBusy("bulk");
     try {
       await bulkCancel({ ...sessionArgs(sessionToken), entryIds: selectedEntries });
-      toast.success(`${selectedEntries.length} waitlist entries cancelled`);
+      toast.success(t("dashboard:entriesCancelled", { count: selectedEntries.length }));
       setSelectedEntries([]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk cancel failed");
+      toast.error(err instanceof Error ? err.message : t("dashboard:bulkCancelFailed"));
     } finally {
       setBusy(null);
     }
@@ -449,47 +479,87 @@ function AdminDashboard() {
   return (
     <div className="space-y-6 sm:space-y-8 pb-16">
       <div>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold">
+          {t("dashboard:adminDashboard")}
+        </h1>
         <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-          Platform governance, depot approvals, user registry & audit logs.
+          {t("dashboard:adminSubtitle")}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
-        <StatCard label="Accounts" value={stats?.accounts} icon={Ticket} />
-        <StatCard label="Consumers" value={stats?.users} icon={Users} />
-        <StatCard label="Dealers" value={stats?.dealers} icon={Store} />
-        <StatCard label="Waitlist" value={stats?.entries} icon={Ticket} />
-        <StatCard label="Pending" value={stats?.pendingDealers} icon={Hourglass} alert={!!stats?.pendingDealers} />
+        <StatCard label={t("dashboard:accounts")} value={stats?.accounts} icon={Ticket} />
+        <StatCard label={t("dashboard:consumers")} value={stats?.users} icon={Users} />
+        <StatCard label={t("dashboard:dealers")} value={stats?.dealers} icon={Store} />
+        <StatCard label={t("dashboard:waitlist")} value={stats?.entries} icon={Ticket} />
+        <StatCard
+          label={t("dashboard:pending")}
+          value={stats?.pendingDealers}
+          icon={Hourglass}
+          alert={!!stats?.pendingDealers}
+        />
       </div>
 
       {/* Floating Bulk Operations Toolbar */}
       {selectedDealers.length > 0 || selectedEntries.length > 0 ? (
         <div className="sticky top-20 z-30 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-primary/30 bg-card p-3.5 shadow-lg backdrop-blur-md">
           <span className="text-xs font-bold text-foreground">
-            Selected: {selectedDealers.length || selectedEntries.length} item(s)
+            {t("dashboard:selectedCount", {
+              count: selectedDealers.length || selectedEntries.length,
+            })}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {selectedDealers.length > 0 ? (
               <>
-                <Button size="sm" variant="outline" className="h-8 rounded-xl text-xs" onClick={() => void handleBulkReview("rejected")} disabled={busy === "bulk"}>
-                  <X className="size-3.5 mr-1 text-destructive" /> Bulk Reject
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-xl text-xs"
+                  onClick={() => void handleBulkReview("rejected")}
+                  disabled={busy === "bulk"}
+                >
+                  <X className="size-3.5 mr-1 text-destructive" /> {t("dashboard:bulkReject")}
                 </Button>
-                <Button size="sm" className="h-8 rounded-xl text-xs font-semibold" onClick={() => void handleBulkReview("approved")} disabled={busy === "bulk"}>
-                  <Check className="size-3.5 mr-1" /> Bulk Approve
+                <Button
+                  size="sm"
+                  className="h-8 rounded-xl text-xs font-semibold"
+                  onClick={() => void handleBulkReview("approved")}
+                  disabled={busy === "bulk"}
+                >
+                  <Check className="size-3.5 mr-1" /> {t("dashboard:bulkApprove")}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-xl text-xs text-destructive hover:bg-destructive/10" onClick={() => void handleBulkDeleteDealers()} disabled={busy === "bulk"}>
-                  <Trash2 className="size-3.5 mr-1" /> Bulk Delete
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-xl text-xs text-destructive hover:bg-destructive/10"
+                  onClick={() => void handleBulkDeleteDealers()}
+                  disabled={busy === "bulk"}
+                >
+                  <Trash2 className="size-3.5 mr-1" /> {t("dashboard:bulkDelete")}
                 </Button>
               </>
             ) : null}
             {selectedEntries.length > 0 ? (
-              <Button size="sm" variant="outline" className="h-8 rounded-xl text-xs text-destructive border-destructive/30" onClick={() => void handleBulkCancelEntries()} disabled={busy === "bulk"}>
-                <X className="size-3.5 mr-1" /> Bulk Cancel Entries
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-xl text-xs text-destructive border-destructive/30"
+                onClick={() => void handleBulkCancelEntries()}
+                disabled={busy === "bulk"}
+              >
+                <X className="size-3.5 mr-1" /> {t("dashboard:bulkCancelEntries")}
               </Button>
             ) : null}
-            <Button size="sm" variant="ghost" className="h-8 rounded-xl text-xs" onClick={() => { setSelectedDealers([]); setSelectedEntries([]); }}>
-              Clear
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 rounded-xl text-xs"
+              onClick={() => {
+                setSelectedDealers([]);
+                setSelectedEntries([]);
+              }}
+            >
+              {t("dashboard:clear")}
             </Button>
           </div>
         </div>
@@ -499,20 +569,38 @@ function AdminDashboard() {
         {/* Horizontal Touch Scrollable Tabs */}
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
           <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 justify-start h-11 p-1 bg-muted/60 rounded-2xl gap-1">
-            <TabsTrigger value="pending" className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0">
-              <Hourglass className="size-3.5 text-amber-600" /> Pending ({stats?.pendingDealers ?? 0})
+            <TabsTrigger
+              value="pending"
+              className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
+            >
+              <Hourglass className="size-3.5 text-amber-600" />{" "}
+              {t("dashboard:pendingCount", { count: stats?.pendingDealers ?? 0 })}
             </TabsTrigger>
-            <TabsTrigger value="dealers" className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0">
-              <Store className="size-3.5 text-primary" /> Dealers ({stats?.dealers ?? 0})
+            <TabsTrigger
+              value="dealers"
+              className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
+            >
+              <Store className="size-3.5 text-primary" />{" "}
+              {t("dashboard:dealersCount", { count: stats?.dealers ?? 0 })}
             </TabsTrigger>
-            <TabsTrigger value="users" className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0">
-              <Users className="size-3.5 text-primary" /> Consumers ({stats?.users ?? 0})
+            <TabsTrigger
+              value="users"
+              className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
+            >
+              <Users className="size-3.5 text-primary" />{" "}
+              {t("dashboard:consumersCount", { count: stats?.users ?? 0 })}
             </TabsTrigger>
-            <TabsTrigger value="entries" className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0">
-              <Ticket className="size-3.5 text-primary" /> Waitlist
+            <TabsTrigger
+              value="entries"
+              className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
+            >
+              <Ticket className="size-3.5 text-primary" /> {t("dashboard:waitlist")}
             </TabsTrigger>
-            <TabsTrigger value="logs" className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0">
-              <FileText className="size-3.5 text-primary" /> Audit Log
+            <TabsTrigger
+              value="logs"
+              className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
+            >
+              <FileText className="size-3.5 text-primary" /> {t("dashboard:auditLog")}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -526,9 +614,11 @@ function AdminDashboard() {
           ) : pending.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-card p-8 sm:p-10 text-center">
               <Store className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-3 font-semibold text-foreground">No pending approvals</p>
+              <p className="mt-3 font-semibold text-foreground">
+                {t("dashboard:noPendingApprovals")}
+              </p>
               <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                New dealer applications will appear here for review.
+                {t("dashboard:pendingApprovalsHint")}
               </p>
             </div>
           ) : (
@@ -543,14 +633,16 @@ function AdminDashboard() {
                           type="checkbox"
                           className="rounded border-border"
                           checked={pending.length > 0 && selectedDealers.length === pending.length}
-                          onChange={(e) => setSelectedDealers(e.target.checked ? pending.map((d) => d.id) : [])}
+                          onChange={(e) =>
+                            setSelectedDealers(e.target.checked ? pending.map((d) => d.id) : [])
+                          }
                         />
                       </TableHead>
-                      <TableHead>Depot</TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead>District</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t("dashboard:depot")}</TableHead>
+                      <TableHead>{t("dashboard:owner")}</TableHead>
+                      <TableHead>{t("dashboard:district")}</TableHead>
+                      <TableHead>{t("dashboard:code")}</TableHead>
+                      <TableHead className="text-right">{t("dashboard:actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -573,7 +665,9 @@ function AdminDashboard() {
                           <p className="text-xs text-muted-foreground">{d.phone}</p>
                         </TableCell>
                         <TableCell>{d.district}</TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-primary">{d.code}</TableCell>
+                        <TableCell className="font-mono text-xs font-bold text-primary">
+                          {d.code}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -583,7 +677,8 @@ function AdminDashboard() {
                               disabled={busy === d.id}
                               onClick={() => void handleReview(d.id, "rejected")}
                             >
-                              <X className="size-3.5 mr-1 text-destructive" /> Reject
+                              <X className="size-3.5 mr-1 text-destructive" />{" "}
+                              {t("dashboard:reject")}
                             </Button>
                             <Button
                               size="sm"
@@ -591,7 +686,12 @@ function AdminDashboard() {
                               disabled={busy === d.id}
                               onClick={() => void handleReview(d.id, "approved")}
                             >
-                              {busy === d.id ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Check className="size-3.5 mr-1" />} Approve
+                              {busy === d.id ? (
+                                <Loader2 className="size-3.5 animate-spin mr-1" />
+                              ) : (
+                                <Check className="size-3.5 mr-1" />
+                              )}{" "}
+                              {t("dashboard:approve")}
                             </Button>
                           </div>
                         </TableCell>
@@ -604,7 +704,10 @@ function AdminDashboard() {
               {/* Mobile Card View with Expandable Actions */}
               <div className="grid gap-3 md:hidden">
                 {pending.map((d) => (
-                  <div key={d.id} className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-3">
+                  <div
+                    key={d.id}
+                    className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-3"
+                  >
                     <div className="flex items-start justify-between gap-2 border-b border-border/50 pb-3">
                       <div className="flex items-center gap-2.5">
                         <input
@@ -615,7 +718,9 @@ function AdminDashboard() {
                         />
                         <div>
                           <h3 className="font-bold text-base text-foreground">{d.businessName}</h3>
-                          <p className="text-xs text-muted-foreground">{d.district} • {d.address}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {d.district} • {d.address}
+                          </p>
                         </div>
                       </div>
                       <span className="font-mono text-xs font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full shrink-0">
@@ -624,8 +729,16 @@ function AdminDashboard() {
                     </div>
 
                     <div className="text-xs space-y-1 text-muted-foreground pl-6">
-                      <p><strong className="text-foreground">Owner:</strong> {d.ownerEmail ?? "-"}</p>
-                      {d.phone ? <p><strong className="text-foreground">Phone:</strong> {d.phone}</p> : null}
+                      <p>
+                        <strong className="text-foreground">{t("dashboard:ownerLabel")}</strong>{" "}
+                        {d.ownerEmail ?? "-"}
+                      </p>
+                      {d.phone ? (
+                        <p>
+                          <strong className="text-foreground">{t("dashboard:phoneLabel")}</strong>{" "}
+                          {d.phone}
+                        </p>
+                      ) : null}
                     </div>
 
                     {/* Compact Expandable Action Toggle on Mobile */}
@@ -636,8 +749,13 @@ function AdminDashboard() {
                         className="h-9 w-full justify-between rounded-xl text-xs font-medium"
                         onClick={() => setExpandedActionId(expandedActionId === d.id ? null : d.id)}
                       >
-                        <span>Manage Application</span>
-                        <ChevronDown className={cn("size-3.5 transition-transform duration-200", expandedActionId === d.id && "rotate-180")} />
+                        <span>{t("dashboard:manageApplication")}</span>
+                        <ChevronDown
+                          className={cn(
+                            "size-3.5 transition-transform duration-200",
+                            expandedActionId === d.id && "rotate-180",
+                          )}
+                        />
                       </Button>
 
                       {expandedActionId === d.id ? (
@@ -648,14 +766,19 @@ function AdminDashboard() {
                             disabled={busy === d.id}
                             onClick={() => void handleReview(d.id, "rejected")}
                           >
-                            <X className="size-4 mr-1 text-destructive" /> Reject
+                            <X className="size-4 mr-1 text-destructive" /> {t("dashboard:reject")}
                           </Button>
                           <Button
                             className="h-10 rounded-xl flex-1 text-xs font-bold"
                             disabled={busy === d.id}
                             onClick={() => void handleReview(d.id, "approved")}
                           >
-                            {busy === d.id ? <Loader2 className="size-4 animate-spin mr-1" /> : <Check className="size-4 mr-1" />} Approve
+                            {busy === d.id ? (
+                              <Loader2 className="size-4 animate-spin mr-1" />
+                            ) : (
+                              <Check className="size-4 mr-1" />
+                            )}{" "}
+                            {t("dashboard:approve")}
                           </Button>
                         </div>
                       ) : null}
@@ -665,7 +788,12 @@ function AdminDashboard() {
               </div>
             </>
           )}
-          <AdminLoadMore status={pendingQ.status} onLoad={() => pendingQ.loadMore(50)} count={pendingQ.results?.length} total={stats?.pendingDealers} />
+          <AdminLoadMore
+            status={pendingQ.status}
+            onLoad={() => pendingQ.loadMore(50)}
+            count={pendingQ.results?.length}
+            total={stats?.pendingDealers}
+          />
         </TabsContent>
 
         {/* Tab 2: Dealers */}
@@ -679,16 +807,18 @@ function AdminDashboard() {
                       type="checkbox"
                       className="rounded border-border"
                       checked={dealers.length > 0 && selectedDealers.length === dealers.length}
-                      onChange={(e) => setSelectedDealers(e.target.checked ? dealers.map((d) => d.id) : [])}
+                      onChange={(e) =>
+                        setSelectedDealers(e.target.checked ? dealers.map((d) => d.id) : [])
+                      }
                     />
                   </TableHead>
-                  <TableHead>Depot</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>District</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Waiting</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("dashboard:depot")}</TableHead>
+                  <TableHead>{t("dashboard:owner")}</TableHead>
+                  <TableHead>{t("dashboard:district")}</TableHead>
+                  <TableHead>{t("dashboard:stock")}</TableHead>
+                  <TableHead>{t("dashboard:waiting")}</TableHead>
+                  <TableHead>{t("dashboard:status")}</TableHead>
+                  <TableHead className="text-right">{t("dashboard:actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -703,7 +833,7 @@ function AdminDashboard() {
                 ) : dealers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                      No registered dealers yet.
+                      {t("dashboard:noRegisteredDealers")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -737,7 +867,9 @@ function AdminDashboard() {
                           className="rounded-full px-2.5 text-[11px]"
                         >
                           {d.approvalStatus}
-                          {d.approvalStatus === "approved" && !d.isActive ? " (inactive)" : ""}
+                          {d.approvalStatus === "approved" && !d.isActive
+                            ? t("dashboard:inactiveSuffix")
+                            : ""}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -750,7 +882,7 @@ function AdminDashboard() {
                               disabled={busy === d.id}
                               onClick={() => void handleUnapprove(d.id)}
                             >
-                              <X className="size-3.5 mr-1" /> Unapprove
+                              <X className="size-3.5 mr-1" /> {t("dashboard:unapprove")}
                             </Button>
                           ) : null}
                           <Button
@@ -760,7 +892,7 @@ function AdminDashboard() {
                             disabled={busy === d.id}
                             onClick={() => void handleDeleteDealer(d.id)}
                           >
-                            <Trash2 className="size-3.5" /> Delete
+                            <Trash2 className="size-3.5" /> {t("dashboard:delete")}
                           </Button>
                         </div>
                       </TableCell>
@@ -774,7 +906,10 @@ function AdminDashboard() {
           {/* Mobile Card View with Expandable Actions */}
           <div className="grid gap-3 md:hidden">
             {dealers.map((d) => (
-              <div key={d.id} className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-3">
+              <div
+                key={d.id}
+                className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-3"
+              >
                 <div className="flex items-start justify-between gap-2 border-b border-border/50 pb-3">
                   <div className="flex items-center gap-2.5">
                     <input
@@ -785,25 +920,36 @@ function AdminDashboard() {
                     />
                     <div>
                       <h3 className="font-bold text-base text-foreground">{d.businessName}</h3>
-                      <p className="text-xs text-muted-foreground">{d.district} • {d.ownerEmail ?? "-"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.district} • {d.ownerEmail ?? "-"}
+                      </p>
                     </div>
                   </div>
-                  <Badge variant={d.approvalStatus === "approved" ? "default" : "secondary"} className="rounded-full shrink-0">
+                  <Badge
+                    variant={d.approvalStatus === "approved" ? "default" : "secondary"}
+                    className="rounded-full shrink-0"
+                  >
                     {d.approvalStatus}
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 py-1 text-center bg-muted/40 rounded-2xl p-2.5">
                   <div>
-                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">Code</p>
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+                      {t("dashboard:code")}
+                    </p>
                     <p className="font-mono text-xs font-extrabold text-primary">{d.code}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">Stock</p>
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+                      {t("dashboard:stock")}
+                    </p>
                     <p className="font-display text-sm font-bold text-foreground">{d.stock}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">Waiting</p>
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+                      {t("dashboard:waiting")}
+                    </p>
                     <p className="font-display text-sm font-bold text-foreground">{d.waiting}</p>
                   </div>
                 </div>
@@ -815,8 +961,13 @@ function AdminDashboard() {
                     className="h-9 w-full justify-between rounded-xl text-xs font-medium"
                     onClick={() => setExpandedActionId(expandedActionId === d.id ? null : d.id)}
                   >
-                    <span>Manage Depot</span>
-                    <ChevronDown className={cn("size-3.5 transition-transform duration-200", expandedActionId === d.id && "rotate-180")} />
+                    <span>{t("dashboard:manageDepot")}</span>
+                    <ChevronDown
+                      className={cn(
+                        "size-3.5 transition-transform duration-200",
+                        expandedActionId === d.id && "rotate-180",
+                      )}
+                    />
                   </Button>
 
                   {expandedActionId === d.id ? (
@@ -828,7 +979,7 @@ function AdminDashboard() {
                           disabled={busy === d.id}
                           onClick={() => void handleUnapprove(d.id)}
                         >
-                          <X className="size-4 mr-1" /> Unapprove
+                          <X className="size-4 mr-1" /> {t("dashboard:unapprove")}
                         </Button>
                       ) : null}
                       <Button
@@ -837,7 +988,7 @@ function AdminDashboard() {
                         disabled={busy === d.id}
                         onClick={() => void handleDeleteDealer(d.id)}
                       >
-                        <Trash2 className="size-4 mr-1" /> Delete Depot
+                        <Trash2 className="size-4 mr-1" /> {t("dashboard:deleteDepot")}
                       </Button>
                     </div>
                   ) : null}
@@ -846,7 +997,12 @@ function AdminDashboard() {
             ))}
           </div>
 
-          <AdminLoadMore status={dealersQ.status} onLoad={() => dealersQ.loadMore(50)} count={dealersQ.results?.length} total={stats?.dealers} />
+          <AdminLoadMore
+            status={dealersQ.status}
+            onLoad={() => dealersQ.loadMore(50)}
+            count={dealersQ.results?.length}
+            total={stats?.dealers}
+          />
         </TabsContent>
 
         {/* Tab 3: Consumers */}
@@ -855,13 +1011,13 @@ function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Citizenship</TableHead>
-                  <TableHead>District</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Purchased</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("dashboard:name")}</TableHead>
+                  <TableHead>{t("dashboard:email")}</TableHead>
+                  <TableHead>{t("dashboard:citizenship")}</TableHead>
+                  <TableHead>{t("dashboard:district")}</TableHead>
+                  <TableHead>{t("dashboard:code")}</TableHead>
+                  <TableHead>{t("dashboard:purchased")}</TableHead>
+                  <TableHead className="text-right">{t("dashboard:actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -876,7 +1032,7 @@ function AdminDashboard() {
                 ) : users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                      No registered consumers yet.
+                      {t("dashboard:noRegisteredConsumers")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -884,9 +1040,13 @@ function AdminDashboard() {
                     <TableRow key={u.id}>
                       <TableCell className="font-semibold text-foreground">{u.fullName}</TableCell>
                       <TableCell className="text-xs">{u.email}</TableCell>
-                      <TableCell className="text-xs font-mono">{maskCitizenship(u.citizenshipNo)}</TableCell>
+                      <TableCell className="text-xs font-mono">
+                        {maskCitizenship(u.citizenshipNo)}
+                      </TableCell>
                       <TableCell>{u.district}</TableCell>
-                      <TableCell className="font-mono text-xs font-bold text-primary">{u.collectionCode}</TableCell>
+                      <TableCell className="font-mono text-xs font-bold text-primary">
+                        {u.collectionCode}
+                      </TableCell>
                       <TableCell className="font-semibold">{u.totalPurchasedQuantity}</TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -896,7 +1056,7 @@ function AdminDashboard() {
                           disabled={busy === u.id}
                           onClick={() => void handleDeleteUser(u.id)}
                         >
-                          <Trash2 className="size-3.5 mr-1" /> Delete
+                          <Trash2 className="size-3.5 mr-1" /> {t("dashboard:delete")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -909,7 +1069,10 @@ function AdminDashboard() {
           {/* Mobile Card View with Expandable Actions */}
           <div className="grid gap-3 md:hidden">
             {users.map((u) => (
-              <div key={u.id} className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-2">
+              <div
+                key={u.id}
+                className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-2"
+              >
                 <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
                   <div>
                     <h3 className="font-bold text-base text-foreground">{u.fullName}</h3>
@@ -921,16 +1084,26 @@ function AdminDashboard() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 pt-1 text-center text-xs">
                   <div className="bg-muted/40 rounded-xl p-2">
-                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">District</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                      {t("dashboard:district")}
+                    </p>
                     <p className="font-semibold text-foreground truncate mt-0.5">{u.district}</p>
                   </div>
                   <div className="bg-muted/40 rounded-xl p-2">
-                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">Citizenship</p>
-                    <p className="font-mono text-[11px] font-semibold text-foreground truncate mt-0.5">{maskCitizenship(u.citizenshipNo)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                      {t("dashboard:citizenship")}
+                    </p>
+                    <p className="font-mono text-[11px] font-semibold text-foreground truncate mt-0.5">
+                      {maskCitizenship(u.citizenshipNo)}
+                    </p>
                   </div>
                   <div className="bg-muted/40 rounded-xl p-2">
-                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">Purchased</p>
-                    <p className="font-bold text-foreground mt-0.5">{u.totalPurchasedQuantity} Cyl</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                      {t("dashboard:purchased")}
+                    </p>
+                    <p className="font-bold text-foreground mt-0.5">
+                      {t("dashboard:purchasedCyl", { count: u.totalPurchasedQuantity })}
+                    </p>
                   </div>
                 </div>
 
@@ -941,8 +1114,13 @@ function AdminDashboard() {
                     className="h-9 w-full justify-between rounded-xl text-xs font-medium"
                     onClick={() => setExpandedActionId(expandedActionId === u.id ? null : u.id)}
                   >
-                    <span>Manage Account</span>
-                    <ChevronDown className={cn("size-3.5 transition-transform duration-200", expandedActionId === u.id && "rotate-180")} />
+                    <span>{t("dashboard:manageAccount")}</span>
+                    <ChevronDown
+                      className={cn(
+                        "size-3.5 transition-transform duration-200",
+                        expandedActionId === u.id && "rotate-180",
+                      )}
+                    />
                   </Button>
 
                   {expandedActionId === u.id ? (
@@ -953,7 +1131,7 @@ function AdminDashboard() {
                         disabled={busy === u.id}
                         onClick={() => void handleDeleteUser(u.id)}
                       >
-                        <Trash2 className="size-4 mr-1" /> Delete Consumer Account
+                        <Trash2 className="size-4 mr-1" /> {t("dashboard:deleteConsumerAccount")}
                       </Button>
                     </div>
                   ) : null}
@@ -962,7 +1140,12 @@ function AdminDashboard() {
             ))}
           </div>
 
-          <AdminLoadMore status={usersQ.status} onLoad={() => usersQ.loadMore(50)} count={usersQ.results?.length} total={stats?.users} />
+          <AdminLoadMore
+            status={usersQ.status}
+            onLoad={() => usersQ.loadMore(50)}
+            count={usersQ.results?.length}
+            total={stats?.users}
+          />
         </TabsContent>
 
         {/* Tab 4: Waitlist */}
@@ -976,14 +1159,16 @@ function AdminDashboard() {
                       type="checkbox"
                       className="rounded border-border"
                       checked={entries.length > 0 && selectedEntries.length === entries.length}
-                      onChange={(e) => setSelectedEntries(e.target.checked ? entries.map((e) => e.id) : [])}
+                      onChange={(e) =>
+                        setSelectedEntries(e.target.checked ? entries.map((e) => e.id) : [])
+                      }
                     />
                   </TableHead>
-                  <TableHead>Dealer</TableHead>
-                  <TableHead>Consumer</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("dashboard:dealer")}</TableHead>
+                  <TableHead>{t("dashboard:consumer")}</TableHead>
+                  <TableHead>{t("dashboard:qty")}</TableHead>
+                  <TableHead>{t("dashboard:status")}</TableHead>
+                  <TableHead className="text-right">{t("dashboard:actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -998,7 +1183,7 @@ function AdminDashboard() {
                 ) : entries.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                      No waitlist entries yet.
+                      {t("dashboard:noWaitlistEntries")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1012,13 +1197,23 @@ function AdminDashboard() {
                           onChange={() => toggleSelectEntry(e.id)}
                         />
                       </TableCell>
-                      <TableCell className="font-semibold">{e.dealerName ?? "Unknown depot"}</TableCell>
-                      <TableCell className="text-xs">{e.consumerEmail ?? "Unknown"}</TableCell>
                       <TableCell className="font-semibold">
-                        {e.quantity} × {e.cylinderSize}
+                        {e.dealerName ?? t("dashboard:unknownDepot")}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {e.consumerEmail ?? t("dashboard:unknown")}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {t("dashboard:quantitySize", {
+                          quantity: formatNumber(e.quantity),
+                          size: e.cylinderSize,
+                        })}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={e.status === "cancelled" ? "destructive" : "secondary"} className="rounded-full">
+                        <Badge
+                          variant={e.status === "cancelled" ? "destructive" : "secondary"}
+                          className="rounded-full"
+                        >
                           {e.status}
                         </Badge>
                       </TableCell>
@@ -1031,7 +1226,7 @@ function AdminDashboard() {
                             disabled={busy === e.id}
                             onClick={() => void handleCancelEntry(e.id)}
                           >
-                            <X className="size-3.5 mr-1" /> Cancel Entry
+                            <X className="size-3.5 mr-1" /> {t("dashboard:cancelEntry")}
                           </Button>
                         ) : null}
                       </TableCell>
@@ -1045,7 +1240,10 @@ function AdminDashboard() {
           {/* Mobile Card View with Expandable Actions */}
           <div className="grid gap-3 md:hidden">
             {entries.map((e) => (
-              <div key={e.id} className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-2">
+              <div
+                key={e.id}
+                className="rounded-3xl border border-border/80 bg-card p-4 shadow-soft space-y-2"
+              >
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
                   <div className="flex items-center gap-2">
                     <input
@@ -1055,17 +1253,29 @@ function AdminDashboard() {
                       onChange={() => toggleSelectEntry(e.id)}
                     />
                     <div>
-                      <h4 className="font-bold text-sm text-foreground">{e.dealerName ?? "Unknown Depot"}</h4>
+                      <h4 className="font-bold text-sm text-foreground">
+                        {e.dealerName ?? t("dashboard:unknownDepot")}
+                      </h4>
                       <p className="text-xs text-muted-foreground">{e.consumerEmail}</p>
                     </div>
                   </div>
-                  <Badge variant={e.status === "cancelled" ? "destructive" : "secondary"} className="rounded-full text-[10px]">
+                  <Badge
+                    variant={e.status === "cancelled" ? "destructive" : "secondary"}
+                    className="rounded-full text-[10px]"
+                  >
                     {e.status}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="font-semibold text-primary">{e.quantity} × {e.cylinderSize} Cylinder</span>
-                  <span className="text-[11px] text-muted-foreground">{formatDateTime(e.createdAt)}</span>
+                  <span className="font-semibold text-primary">
+                    {t("dashboard:quantitySizeCylinder", {
+                      quantity: formatNumber(e.quantity),
+                      size: e.cylinderSize,
+                    })}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatDateTime(e.createdAt)}
+                  </span>
                 </div>
 
                 {e.status !== "cancelled" && e.status !== "collected" ? (
@@ -1076,8 +1286,13 @@ function AdminDashboard() {
                       className="h-8 w-full justify-between rounded-xl text-xs font-medium"
                       onClick={() => setExpandedActionId(expandedActionId === e.id ? null : e.id)}
                     >
-                      <span>Actions</span>
-                      <ChevronDown className={cn("size-3.5 transition-transform duration-200", expandedActionId === e.id && "rotate-180")} />
+                      <span>{t("dashboard:actions")}</span>
+                      <ChevronDown
+                        className={cn(
+                          "size-3.5 transition-transform duration-200",
+                          expandedActionId === e.id && "rotate-180",
+                        )}
+                      />
                     </Button>
 
                     {expandedActionId === e.id ? (
@@ -1088,7 +1303,7 @@ function AdminDashboard() {
                           disabled={busy === e.id}
                           onClick={() => void handleCancelEntry(e.id)}
                         >
-                          <X className="size-3.5 mr-1" /> Cancel Waitlist Entry
+                          <X className="size-3.5 mr-1" /> {t("dashboard:cancelWaitlistEntry")}
                         </Button>
                       </div>
                     ) : null}
@@ -1098,7 +1313,12 @@ function AdminDashboard() {
             ))}
           </div>
 
-          <AdminLoadMore status={entriesQ.status} onLoad={() => entriesQ.loadMore(50)} count={entriesQ.results?.length} total={stats?.entries} />
+          <AdminLoadMore
+            status={entriesQ.status}
+            onLoad={() => entriesQ.loadMore(50)}
+            count={entriesQ.results?.length}
+            total={stats?.entries}
+          />
         </TabsContent>
 
         {/* Tab 5: Audit Log */}
@@ -1107,9 +1327,9 @@ function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>Timestamp</TableHead>
+                  <TableHead>{t("dashboard:action")}</TableHead>
+                  <TableHead>{t("dashboard:details")}</TableHead>
+                  <TableHead>{t("dashboard:timestamp")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1124,15 +1344,19 @@ function AdminDashboard() {
                 ) : logs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
-                      No activity logged yet.
+                      {t("dashboard:noActivity")}
                     </TableCell>
                   </TableRow>
                 ) : (
                   logs.map((l) => (
                     <TableRow key={l.id}>
-                      <TableCell className="font-mono text-xs font-bold text-primary">{l.action}</TableCell>
+                      <TableCell className="font-mono text-xs font-bold text-primary">
+                        {l.action}
+                      </TableCell>
                       <TableCell className="text-xs">{l.details ?? l.targetId ?? "-"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatDateTime(l.createdAt)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDateTime(l.createdAt)}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -1143,19 +1367,29 @@ function AdminDashboard() {
           {/* Mobile Card View */}
           <div className="grid gap-2.5 md:hidden">
             {logs.map((l) => (
-              <div key={l.id} className="rounded-2xl border border-border/80 bg-card p-3.5 shadow-soft space-y-1.5 text-xs">
+              <div
+                key={l.id}
+                className="rounded-2xl border border-border/80 bg-card p-3.5 shadow-soft space-y-1.5 text-xs"
+              >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg text-[11px]">
                     {l.action}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">{formatDateTime(l.createdAt)}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatDateTime(l.createdAt)}
+                  </span>
                 </div>
                 <p className="text-foreground text-xs pt-0.5">{l.details ?? l.targetId ?? "-"}</p>
               </div>
             ))}
           </div>
 
-          <AdminLoadMore status={logsQ.status} onLoad={() => logsQ.loadMore(50)} count={logsQ.results?.length} total={stats?.logs} />
+          <AdminLoadMore
+            status={logsQ.status}
+            onLoad={() => logsQ.loadMore(50)}
+            count={logsQ.results?.length}
+            total={stats?.logs}
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -1173,16 +1407,22 @@ function AdminLoadMore({
   count: number | undefined;
   total: number | undefined;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-2 pt-2">
       {count !== undefined && total !== undefined ? (
         <p className="text-xs text-muted-foreground">
-          Showing {count} of {total} entries
+          {t("dashboard:showingEntries", { count, total: formatNumber(total) })}
         </p>
       ) : null}
       {status === "CanLoadMore" ? (
-        <Button variant="outline" size="sm" className="rounded-xl font-semibold h-9 px-4 text-xs" onClick={onLoad}>
-          Load more
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl font-semibold h-9 px-4 text-xs"
+          onClick={onLoad}
+        >
+          {t("dashboard:loadMore")}
         </Button>
       ) : null}
     </div>
@@ -1208,7 +1448,9 @@ function StatCard({
       )}
     >
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          {label}
+        </p>
         {Icon ? (
           <span
             className={cn(
@@ -1220,7 +1462,9 @@ function StatCard({
           </span>
         ) : null}
       </div>
-      <p className="font-display text-2xl sm:text-3xl font-extrabold text-foreground mt-2">{value ?? "-"}</p>
+      <p className="font-display text-2xl sm:text-3xl font-extrabold text-foreground mt-2">
+        {value ?? "-"}
+      </p>
     </div>
   );
 }

@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { useAuth } from "@/lib/auth";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/gas";
+import { formatNumber } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
@@ -52,6 +54,7 @@ function iconForTitle(title: string): { Icon: LucideIcon; tone: Tone } {
 }
 
 function NotificationsPage() {
+  const { t } = useTranslation();
   const { sessionToken } = useAuth();
   const rows = useQuery(api.notifications.list, sessionToken ? { sessionToken } : "skip");
   const markAllRead = useMutation(api.notifications.markAllRead);
@@ -66,14 +69,16 @@ function NotificationsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Alerts</h1>
+          <h1 className="font-display text-3xl font-bold">{t("notifications:title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {unread > 0 ? `${unread} unread` : "You're all caught up"}
+            {unread > 0
+              ? t("notifications:unreadCount", { count: formatNumber(unread) })
+              : t("notifications:allCaughtUp")}
           </p>
         </div>
         {unread > 0 ? (
           <Button variant="outline" size="sm" onClick={() => void markAll()}>
-            <CheckCheck className="size-4" /> Mark all read
+            <CheckCheck className="size-4" /> {t("notifications:markAllRead")}
           </Button>
         ) : null}
       </div>
@@ -85,10 +90,8 @@ function NotificationsPage() {
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
           <Bell className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 font-semibold">No alerts yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            We'll tell you the moment your cylinder is allotted.
-          </p>
+          <p className="mt-3 font-semibold">{t("notifications:noAlerts")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("notifications:emptyBody")}</p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -117,7 +120,10 @@ function NotificationsPage() {
                       <p className="flex items-center gap-2 font-semibold">
                         {n.title}
                         {!n.read ? (
-                          <span className="size-2 rounded-full bg-primary" aria-label="Unread" />
+                          <span
+                            className="size-2 rounded-full bg-primary"
+                            aria-label={t("notifications:unread")}
+                          />
                         ) : null}
                       </p>
                       <span className="shrink-0 text-xs text-muted-foreground">

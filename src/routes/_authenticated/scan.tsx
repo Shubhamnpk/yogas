@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { QrCode } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import QrScanner from "@/components/QrScanner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/scan")({
 });
 
 function ScanPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const handled = useRef(false);
@@ -37,10 +39,8 @@ function ScanPage() {
         <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-accent text-accent-foreground">
           <QrCode className="size-6" />
         </span>
-        <h1 className="mt-4 font-display text-3xl font-bold">Scan a depot code</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Point your camera at the QR code displayed at the depot counter.
-        </p>
+        <h1 className="mt-4 font-display text-3xl font-bold">{t("scan:title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("scan:description")}</p>
       </div>
 
       <QrScanner
@@ -48,7 +48,7 @@ function ScanPage() {
           if (handled.current) return;
           const parsed = parseScanPayload(text);
           if (parsed.kind === "consumer") {
-            toast.error("That's a consumer code. Scan the depot's code instead.");
+            toast.error(t("scan:consumerCodeWrong"));
             return;
           }
           handled.current = true;
@@ -57,16 +57,16 @@ function ScanPage() {
       />
 
       <div className="rounded-2xl border border-border bg-card p-6">
-        <Label htmlFor="code">Or enter the depot code</Label>
+        <Label htmlFor="code">{t("scan:orEnterCode")}</Label>
         <div className="mt-2 flex gap-2">
           <Input
             id="code"
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="e.g. KTM-4821"
+            placeholder={t("scan:codePlaceholder")}
             maxLength={20}
           />
-          <Button onClick={() => go(code)}>Go</Button>
+          <Button onClick={() => go(code)}>{t("scan:go")}</Button>
         </div>
       </div>
     </div>

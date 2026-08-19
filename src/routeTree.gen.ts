@@ -9,8 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as SiteRouteRouteImport } from './routes/_site/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDealersRouteImport } from './routes/_authenticated/dealers'
@@ -19,18 +19,25 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedWaitlistRouteImport } from './routes/_authenticated/waitlist'
+import { Route as SiteIndexRouteImport } from './routes/_site/index'
+import { Route as SiteAboutRouteImport } from './routes/_site/about'
+import { Route as SiteContactRouteImport } from './routes/_site/contact'
+import { Route as SiteFaqRouteImport } from './routes/_site/faq'
+import { Route as SiteHowItWorksRouteImport } from './routes/_site/how-it-works'
+import { Route as SitePrivacyRouteImport } from './routes/_site/privacy'
+import { Route as SiteReleasesRouteImport } from './routes/_site/releases'
+import { Route as SiteTermsRouteImport } from './routes/_site/terms'
 import { Route as AuthenticatedDealerIndexRouteImport } from './routes/_authenticated/dealer.index'
 import { Route as AuthenticatedDealerScanRouteImport } from './routes/_authenticated/dealer.scan'
 import { Route as AuthenticatedDealerStockRouteImport } from './routes/_authenticated/dealer.stock'
 import { Route as AuthenticatedDealerWaitlistRouteImport } from './routes/_authenticated/dealer.waitlist'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteRouteRoute = SiteRouteRouteImport.update({
+  id: '/_site',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -74,6 +81,46 @@ const AuthenticatedWaitlistRoute = AuthenticatedWaitlistRouteImport.update({
   path: '/waitlist',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const SiteIndexRoute = SiteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SiteAboutRoute = SiteAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SiteContactRoute = SiteContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SiteFaqRoute = SiteFaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SiteHowItWorksRoute = SiteHowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SitePrivacyRoute = SitePrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SiteReleasesRoute = SiteReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const SiteTermsRoute = SiteTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
 const AuthenticatedDealerIndexRoute =
   AuthenticatedDealerIndexRouteImport.update({
     id: '/dealer/',
@@ -99,7 +146,7 @@ const AuthenticatedDealerWaitlistRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof SiteIndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dealers': typeof AuthenticatedDealersRoute
@@ -108,13 +155,20 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/scan': typeof AuthenticatedScanRoute
   '/waitlist': typeof AuthenticatedWaitlistRoute
+  '/about': typeof SiteAboutRoute
+  '/contact': typeof SiteContactRoute
+  '/faq': typeof SiteFaqRoute
+  '/how-it-works': typeof SiteHowItWorksRoute
+  '/privacy': typeof SitePrivacyRoute
+  '/releases': typeof SiteReleasesRoute
+  '/terms': typeof SiteTermsRoute
   '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
   '/dealer/waitlist': typeof AuthenticatedDealerWaitlistRoute
   '/dealer/': typeof AuthenticatedDealerIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof SiteIndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dealers': typeof AuthenticatedDealersRoute
@@ -123,6 +177,13 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/scan': typeof AuthenticatedScanRoute
   '/waitlist': typeof AuthenticatedWaitlistRoute
+  '/about': typeof SiteAboutRoute
+  '/contact': typeof SiteContactRoute
+  '/faq': typeof SiteFaqRoute
+  '/how-it-works': typeof SiteHowItWorksRoute
+  '/privacy': typeof SitePrivacyRoute
+  '/releases': typeof SiteReleasesRoute
+  '/terms': typeof SiteTermsRoute
   '/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/dealer/stock': typeof AuthenticatedDealerStockRoute
   '/dealer/waitlist': typeof AuthenticatedDealerWaitlistRoute
@@ -130,8 +191,8 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_site': typeof SiteRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dealers': typeof AuthenticatedDealersRoute
@@ -140,6 +201,14 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/waitlist': typeof AuthenticatedWaitlistRoute
+  '/_site/about': typeof SiteAboutRoute
+  '/_site/contact': typeof SiteContactRoute
+  '/_site/faq': typeof SiteFaqRoute
+  '/_site/how-it-works': typeof SiteHowItWorksRoute
+  '/_site/privacy': typeof SitePrivacyRoute
+  '/_site/releases': typeof SiteReleasesRoute
+  '/_site/terms': typeof SiteTermsRoute
+  '/_site/': typeof SiteIndexRoute
   '/_authenticated/dealer/scan': typeof AuthenticatedDealerScanRoute
   '/_authenticated/dealer/stock': typeof AuthenticatedDealerStockRoute
   '/_authenticated/dealer/waitlist': typeof AuthenticatedDealerWaitlistRoute
@@ -157,6 +226,13 @@ export interface FileRouteTypes {
     | '/profile'
     | '/scan'
     | '/waitlist'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/how-it-works'
+    | '/privacy'
+    | '/releases'
+    | '/terms'
     | '/dealer/scan'
     | '/dealer/stock'
     | '/dealer/waitlist'
@@ -172,14 +248,21 @@ export interface FileRouteTypes {
     | '/profile'
     | '/scan'
     | '/waitlist'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/how-it-works'
+    | '/privacy'
+    | '/releases'
+    | '/terms'
     | '/dealer/scan'
     | '/dealer/stock'
     | '/dealer/waitlist'
     | '/dealer'
   id:
     | '__root__'
-    | '/'
     | '/_authenticated'
+    | '/_site'
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/dealers'
@@ -188,6 +271,14 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/scan'
     | '/_authenticated/waitlist'
+    | '/_site/about'
+    | '/_site/contact'
+    | '/_site/faq'
+    | '/_site/how-it-works'
+    | '/_site/privacy'
+    | '/_site/releases'
+    | '/_site/terms'
+    | '/_site/'
     | '/_authenticated/dealer/scan'
     | '/_authenticated/dealer/stock'
     | '/_authenticated/dealer/waitlist'
@@ -195,25 +286,25 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  SiteRouteRoute: typeof SiteRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_site': {
+      id: '/_site'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof SiteRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -271,6 +362,62 @@ declare module '@tanstack/react-router' {
       fullPath: '/waitlist'
       preLoaderRoute: typeof AuthenticatedWaitlistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_site/': {
+      id: '/_site/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof SiteIndexRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/about': {
+      id: '/_site/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof SiteAboutRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/contact': {
+      id: '/_site/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof SiteContactRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/faq': {
+      id: '/_site/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof SiteFaqRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/how-it-works': {
+      id: '/_site/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof SiteHowItWorksRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/privacy': {
+      id: '/_site/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof SitePrivacyRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/releases': {
+      id: '/_site/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof SiteReleasesRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/_site/terms': {
+      id: '/_site/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof SiteTermsRouteImport
+      parentRoute: typeof SiteRouteRoute
     }
     '/_authenticated/dealer/': {
       id: '/_authenticated/dealer/'
@@ -334,9 +481,35 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface SiteRouteRouteChildren {
+  SiteAboutRoute: typeof SiteAboutRoute
+  SiteContactRoute: typeof SiteContactRoute
+  SiteFaqRoute: typeof SiteFaqRoute
+  SiteHowItWorksRoute: typeof SiteHowItWorksRoute
+  SitePrivacyRoute: typeof SitePrivacyRoute
+  SiteReleasesRoute: typeof SiteReleasesRoute
+  SiteTermsRoute: typeof SiteTermsRoute
+  SiteIndexRoute: typeof SiteIndexRoute
+}
+
+const SiteRouteRouteChildren: SiteRouteRouteChildren = {
+  SiteAboutRoute: SiteAboutRoute,
+  SiteContactRoute: SiteContactRoute,
+  SiteFaqRoute: SiteFaqRoute,
+  SiteHowItWorksRoute: SiteHowItWorksRoute,
+  SitePrivacyRoute: SitePrivacyRoute,
+  SiteReleasesRoute: SiteReleasesRoute,
+  SiteTermsRoute: SiteTermsRoute,
+  SiteIndexRoute: SiteIndexRoute,
+}
+
+const SiteRouteRouteWithChildren = SiteRouteRoute._addFileChildren(
+  SiteRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  SiteRouteRoute: SiteRouteRouteWithChildren,
   AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport

@@ -4,6 +4,8 @@ import { useMutation } from "convex/react";
 import { Loader2, Store, User } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import i18n from "@/lib/i18n";
 import { api } from "../../../convex/_generated/api";
 import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -19,27 +21,28 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 });
 
 const consumerSchema = z.object({
-  full_name: z.string().trim().min(2, "Enter your full name").max(80),
+  full_name: z.string().trim().min(2, i18n.t("onboarding:fullNameRequired")).max(80),
   citizenship_no: z
     .string()
     .trim()
-    .min(4, "Enter your citizenship number")
+    .min(4, i18n.t("onboarding:citizenshipRequired"))
     .max(30)
-    .regex(/^[0-9A-Za-z\-/ ]+$/, "Only numbers, letters, dashes and slashes"),
-  address: z.string().trim().min(4, "Enter your address").max(160),
-  district: z.string().trim().min(2, "Choose your district"),
+    .regex(/^[0-9A-Za-z\-/ ]+$/, i18n.t("onboarding:citizenshipFormat")),
+  address: z.string().trim().min(4, i18n.t("onboarding:addressRequired")).max(160),
+  district: z.string().trim().min(2, i18n.t("onboarding:districtRequired")),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
 });
 
 const dealerSchema = z.object({
-  business_name: z.string().trim().min(2, "Enter your depot name").max(90),
+  business_name: z.string().trim().min(2, i18n.t("onboarding:depotNameRequired")).max(90),
   license_no: z.string().trim().max(40).optional().or(z.literal("")),
-  district: z.string().trim().min(2, "Choose your district"),
-  address: z.string().trim().min(4, "Enter your depot address").max(160),
+  district: z.string().trim().min(2, i18n.t("onboarding:districtRequired")),
+  address: z.string().trim().min(4, i18n.t("onboarding:depotAddressRequired")).max(160),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
 });
 
 function Onboarding() {
+  const { t } = useTranslation();
   const { user, profile, role, dealer, profileComplete, refresh, sessionToken } = useAuth();
   const navigate = useNavigate();
   const updateRole = useMutation(api.app.updateRole);
@@ -97,7 +100,7 @@ function Onboarding() {
     setCitizenshipError(null);
     const parsed = consumerSchema.safeParse(c);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
+      toast.error(parsed.error.issues[0]?.message ?? t("onboarding:checkYourDetails"));
       return;
     }
     setBusy(true);
@@ -110,15 +113,13 @@ function Onboarding() {
         district: parsed.data.district,
         ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
-      toast.success("Profile saved");
+      toast.success(t("onboarding:profileSaved"));
       await refresh();
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       const message = friendlyError(error, "Could not save profile");
       if (/citizenship/i.test(raw)) {
-        setCitizenshipError(
-          "That citizenship number is already in use. Please change it and try again.",
-        );
+        setCitizenshipError(t("onboarding:citizenshipTaken"));
       }
       toast.error(message);
     } finally {
@@ -131,11 +132,11 @@ function Onboarding() {
     if (!user) return;
     const parsed = dealerSchema.safeParse(d);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
+      toast.error(parsed.error.issues[0]?.message ?? t("onboarding:checkYourDetails"));
       return;
     }
     if (!c.full_name.trim()) {
-      toast.error("Enter your name");
+      toast.error(t("onboarding:enterYourName"));
       return;
     }
     setBusy(true);
@@ -154,7 +155,7 @@ function Onboarding() {
         address: parsed.data.address,
         ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
-      toast.success(dealer ? "Depot updated" : "Depot registered");
+      toast.success(dealer ? t("onboarding:depotUpdated") : t("onboarding:depotRegistered"));
       await refresh();
     } catch (error) {
       toast.error(friendlyError(error, "Could not register depot"));
@@ -172,13 +173,25 @@ function Onboarding() {
 
         {!activeRole ? (
           <div className="rounded-2xl border border-border bg-card p-7 shadow-soft">
-            <h1 className="font-display text-2xl font-bold">How will you use YoGas?</h1>
-            <p className="mt-1 text-sm text-muted-foreground">You can only pick this once.</p>
+            <h1 className="font-display text-2xl font-bold">
+              {t("onboarding:howWillYouUseYoGas")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t("onboarding:pickOnce")}</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  { key: "consumer", label: "I need gas", body: "Join depot queues", icon: User },
-                  { key: "dealer", label: "I'm a dealer", body: "Run a depot queue", icon: Store },
+                  {
+                    key: "consumer",
+                    label: t("onboarding:iNeedGas"),
+                    body: t("onboarding:joinDepotQueues"),
+                    icon: User,
+                  },
+                  {
+                    key: "dealer",
+                    label: t("onboarding:imADealer"),
+                    body: t("onboarding:runADepotQueue"),
+                    icon: Store,
+                  },
                 ] as const
               ).map((opt) => (
                 <button
@@ -201,20 +214,19 @@ function Onboarding() {
             className="space-y-4 rounded-2xl border border-border bg-card p-7 shadow-soft"
           >
             <div>
-              <h1 className="font-display text-2xl font-bold">Your details</h1>
+              <h1 className="font-display text-2xl font-bold">{t("onboarding:yourDetails")}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Depots use this to verify you at the counter. Your citizenship number is only ever
-                shown to them in masked form.
+                {t("onboarding:yourDetailsHint")}
               </p>
             </div>
-            <Field label="Full name">
+            <Field label={t("onboarding:fullName")}>
               <Input
                 value={c.full_name}
                 onChange={(e) => setC({ ...c, full_name: e.target.value })}
                 maxLength={80}
               />
             </Field>
-            <Field label="Citizenship number">
+            <Field label={t("onboarding:citizenshipNumber")}>
               <Input
                 value={c.citizenship_no}
                 onChange={(e) => {
@@ -232,24 +244,24 @@ function Onboarding() {
                 </p>
               ) : null}
             </Field>
-            <Field label="Address">
+            <Field label={t("onboarding:address")}>
               <Input
                 value={c.address}
                 onChange={(e) => setC({ ...c, address: e.target.value })}
                 maxLength={160}
-                placeholder="e.g. Ward 4, Jyatha, Thamel"
+                placeholder={t("onboarding:addressPlaceholder")}
               />
             </Field>
-            <Field label="District">
+            <Field label={t("onboarding:district")}>
               <Combobox
                 value={c.district}
                 onValueChange={(v) => setC({ ...c, district: v })}
                 options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
-                placeholder="Select district"
+                placeholder={t("onboarding:selectDistrict")}
               />
             </Field>
 
-            <Field label="Phone (optional)">
+            <Field label={t("onboarding:phoneOptional")}>
               <Input
                 value={c.phone}
                 onChange={(e) => setC({ ...c, phone: e.target.value })}
@@ -257,7 +269,8 @@ function Onboarding() {
               />
             </Field>
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : null} Save and continue
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}{" "}
+              {t("onboarding:saveAndContinue")}
             </Button>
           </form>
         ) : (
@@ -266,49 +279,51 @@ function Onboarding() {
             className="space-y-4 rounded-2xl border border-border bg-card p-7 shadow-soft"
           >
             <div>
-              <h1 className="font-display text-2xl font-bold">Register your depot</h1>
+              <h1 className="font-display text-2xl font-bold">
+                {t("onboarding:registerYourDepot")}
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Consumers will find and scan this depot to join your queue.
+                {t("onboarding:registerDepotHint")}
               </p>
             </div>
-            <Field label="Your name">
+            <Field label={t("onboarding:yourName")}>
               <Input
                 value={c.full_name}
                 onChange={(e) => setC({ ...c, full_name: e.target.value })}
                 maxLength={80}
               />
             </Field>
-            <Field label="Depot / business name">
+            <Field label={t("onboarding:depotBusinessName")}>
               <Input
                 value={d.business_name}
                 onChange={(e) => setD({ ...d, business_name: e.target.value })}
                 maxLength={90}
               />
             </Field>
-            <Field label="Licence number (optional)">
+            <Field label={t("onboarding:licenceOptional")}>
               <Input
                 value={d.license_no}
                 onChange={(e) => setD({ ...d, license_no: e.target.value })}
                 maxLength={40}
               />
             </Field>
-            <Field label="District">
+            <Field label={t("onboarding:district")}>
               <Combobox
                 value={d.district}
                 onValueChange={(v) => setD({ ...d, district: v })}
                 options={NEPAL_DISTRICTS.map((x) => ({ value: x, label: x }))}
-                placeholder="Select district"
+                placeholder={t("onboarding:selectDistrict")}
               />
             </Field>
-            <Field label="Depot address">
+            <Field label={t("onboarding:depotAddress")}>
               <Input
                 value={d.address}
                 onChange={(e) => setD({ ...d, address: e.target.value })}
                 maxLength={160}
-                placeholder="e.g. Chabahil Chowk, Kathmandu"
+                placeholder={t("onboarding:depotAddressPlaceholder")}
               />
             </Field>
-            <Field label="Contact phone (optional)">
+            <Field label={t("onboarding:contactPhoneOptional")}>
               <Input
                 value={d.phone}
                 onChange={(e) => setD({ ...d, phone: e.target.value })}
@@ -316,7 +331,8 @@ function Onboarding() {
               />
             </Field>
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : null} Register depot
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}{" "}
+              {t("onboarding:registerDepot")}
             </Button>
           </form>
         )}

@@ -366,7 +366,7 @@ function DealerScan() {
           </div>
 
           <div className="grid gap-px bg-border sm:grid-cols-2">
-            <InfoTile label="Citizenship" value={consumer?.citizenshipMasked ?? "—"} />
+            <InfoTile label="Citizenship" value={consumer?.citizenshipMasked ?? "-"} />
             <InfoTile label="Address" value={consumer?.address ?? "-"} />
             <InfoTile
               label="Total purchased"

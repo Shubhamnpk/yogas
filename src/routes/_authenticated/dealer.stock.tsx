@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { Boxes, Loader2, Minus, Pencil, Plus, Store } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { api } from "../../../convex/_generated/api";
+import i18n, { formatNumber } from "@/lib/i18n";
 import { useAuth, sessionArgs } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +15,12 @@ import { friendlyError, stockLabel } from "@/lib/gas";
 export const Route = createFileRoute("/_authenticated/dealer/stock")({
   head: () => ({
     meta: [
-      { title: "Stock & availability - YoGas" },
-      { name: "description", content: "Update your cylinder stock and depot availability." },
-      { property: "og:title", content: "Stock & availability - YoGas" },
+      { title: i18n.t("dealer:stockTitle") },
+      { name: "description", content: i18n.t("dealer:stockDescription") },
+      { property: "og:title", content: i18n.t("dealer:stockTitle") },
       {
         property: "og:description",
-        content: "Keep your stock accurate so the queue stays honest.",
+        content: i18n.t("dealer:stockOgDescription"),
       },
     ],
   }),
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/dealer/stock")({
 });
 
 function DealerStock() {
+  const { t } = useTranslation();
   const { dealer, user, sessionToken } = useAuth();
   const updateDealerStock = useMutation(api.app.updateDealerStock);
   const toggleDealerActive = useMutation(api.app.toggleDealerActive);
@@ -74,7 +77,7 @@ function DealerStock() {
         ...sessionArgs(sessionToken),
         stock: Math.max(0, Math.floor(stock)),
       });
-      toast.success("Stock updated successfully");
+      toast.success(t("dealer:stockUpdatedSuccess"));
     } catch (error) {
       toast.error(friendlyError(error, "Could not update stock"));
     } finally {
@@ -85,7 +88,7 @@ function DealerStock() {
   const toggleActive = async (value: boolean) => {
     try {
       await toggleDealerActive({ ...sessionArgs(sessionToken), isActive: value });
-      toast.success(value ? "Depot is now visible to consumers" : "Depot hidden from consumer search");
+      toast.success(value ? t("dealer:depotNowVisible") : t("dealer:depotHidden"));
     } catch (error) {
       toast.error(friendlyError(error, "Could not update depot visibility"));
     }
@@ -94,9 +97,11 @@ function DealerStock() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
       <div>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold">Cylinder Stock & Availability</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold">
+          {t("dealer:stockAvailabilityTitle")}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Stock count decreases automatically when you hand over cylinders to customers.
+          {t("dealer:stockCountNote")}
         </p>
       </div>
 
@@ -108,7 +113,7 @@ function DealerStock() {
               <Boxes className="size-5" />
             </span>
             <div>
-              <h2 className="font-bold text-base">Cylinders Available</h2>
+              <h2 className="font-bold text-base">{t("dealer:cylindersAvailable")}</h2>
               <p
                 className={
                   s.tone === "success"
@@ -118,12 +123,12 @@ function DealerStock() {
                       : "text-xs font-semibold text-destructive"
                 }
               >
-                {s.label}
+                {t(s.key)}
               </p>
             </div>
           </div>
           <span className="font-mono text-xs font-bold text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
-            Depot: {dealer.code}
+            {t("dealer:depotLabel", { code: dealer.code })}
           </span>
         </div>
 
@@ -169,22 +174,22 @@ function DealerStock() {
               className="rounded-xl px-4 font-semibold text-xs h-9"
               onClick={() => adjustStock(n)}
             >
-              +{n} Cylinders
+              {t("dealer:addCylinders", { count: n, formatted: formatNumber(n) })}
             </Button>
           ))}
         </div>
 
         <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={() => void saveStock()} disabled={busy}>
-          {busy ? <Loader2 className="size-5 animate-spin mr-2" /> : null} Save Updated Stock
+          {busy ? <Loader2 className="size-5 animate-spin mr-2" /> : null} {t("dealer:saveUpdatedStock")}
         </Button>
       </div>
 
       {/* Queue Visibility Toggle */}
       <div className="flex items-center justify-between rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
         <div className="pr-4">
-          <h2 className="font-bold text-base text-foreground">Accept New Requests</h2>
+          <h2 className="font-bold text-base text-foreground">{t("dealer:acceptNewRequests")}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Turn off to temporarily pause your queue and hide your depot from consumer searches.
+            {t("dealer:acceptNewRequestsNote")}
           </p>
         </div>
         <Switch checked={dealer.is_active} onCheckedChange={(v) => void toggleActive(v)} />

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import { useMutation, useQuery } from "convex/react";
+import { useTranslation } from "react-i18next";
 import {
   AtSign,
   BadgeCheck,
@@ -34,6 +35,7 @@ import {
 import { z } from "zod";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
+import i18n from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -54,23 +56,20 @@ import {
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile - YoGas" },
-      {
-        name: "description",
-        content: "Manage your YoGas details, district and personal collection code.",
-      },
-      { property: "og:title", content: "Your profile - YoGas" },
-      { property: "og:description", content: "Your details and collection QR code in one place." },
+      { title: i18n.t("profile:metaTitle") },
+      { name: "description", content: i18n.t("profile:metaDescription") },
+      { property: "og:title", content: i18n.t("profile:metaOgTitle") },
+      { property: "og:description", content: i18n.t("profile:metaOgDescription") },
     ],
   }),
   component: ProfilePage,
 });
 
 const schema = z.object({
-  full_name: z.string().trim().min(2, "Enter your full name").max(80),
+  full_name: z.string().trim().min(2, i18n.t("profile:enterFullName")).max(80),
   citizenship_no: z.string().trim().max(30).optional().or(z.literal("")),
   address: z.string().trim().max(160).optional().or(z.literal("")),
-  district: z.string().trim().min(2, "Choose your district"),
+  district: z.string().trim().min(2, i18n.t("profile:chooseDistrict")),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
 });
 
@@ -86,6 +85,7 @@ function ProfilePage() {
 /* ------------------------------------------------------------------ */
 
 function ConsumerProfile() {
+  const { t } = useTranslation();
   const { user, profile, signOut, refresh, sessionToken } = useAuth();
   const navigate = useNavigate();
   const updateProfile = useMutation(api.app.updateProfile);
@@ -132,11 +132,11 @@ function ConsumerProfile() {
     if (!user) return;
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
+      toast.error(parsed.error.issues[0]?.message ?? t("profile:checkDetails"));
       return;
     }
     if (!parsed.data.citizenship_no || !parsed.data.address) {
-      toast.error("Citizenship number and address are required");
+      toast.error(t("profile:citizenshipAndAddressRequired"));
       return;
     }
     setBusy(true);
@@ -149,7 +149,7 @@ function ConsumerProfile() {
         district: parsed.data.district,
         ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
-      toast.success("Profile updated successfully");
+      toast.success(t("profile:profileUpdated"));
       await refresh();
       setEditing(false);
     } catch (error) {
@@ -167,10 +167,10 @@ function ConsumerProfile() {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      toast.success("Collection code copied");
+      toast.success(t("profile:collectionCodeCopied"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Could not copy - write it down instead");
+      toast.error(t("profile:copyFailed"));
     }
   };
 
@@ -182,7 +182,7 @@ function ConsumerProfile() {
   const qrContent = (
     <div className="flex flex-col items-center text-center space-y-4">
       <div className="rounded-xl bg-muted/50 p-2 text-xs text-muted-foreground max-w-xs">
-        Present this QR code or collection code to the gas dealer to verify your order.
+        {t("profile:qrPresentHint")}
       </div>
 
       {qrValue ? (
@@ -193,7 +193,7 @@ function ConsumerProfile() {
 
       <div className="w-full space-y-2">
         <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
-          Your Verification Code
+          {t("profile:yourVerificationCode")}
         </p>
         <div className="flex items-center justify-center gap-2">
           <span className="font-mono text-2xl sm:text-3xl font-extrabold tracking-widest text-foreground bg-primary/10 text-primary px-4 py-1.5 rounded-xl">
@@ -209,11 +209,12 @@ function ConsumerProfile() {
       >
         {copied ? (
           <>
-            <Check className="size-4 mr-1.5 text-success-foreground" /> Copied to Clipboard
+            <Check className="size-4 mr-1.5 text-success-foreground" />{" "}
+            {t("profile:copiedToClipboard")}
           </>
         ) : (
           <>
-            <Copy className="size-4 mr-1.5" /> Copy Code
+            <Copy className="size-4 mr-1.5" /> {t("profile:copyCode")}
           </>
         )}
       </Button>
@@ -235,7 +236,7 @@ function ConsumerProfile() {
             className="absolute right-3 top-3 sm:right-4 sm:top-4 h-9 rounded-full bg-background/85 text-foreground backdrop-blur-md hover:bg-background shadow-sm border border-white/20 transition-all active:scale-95"
           >
             <LogOut className="size-4 text-destructive" />
-            <span className="text-xs font-medium ml-1">Sign out</span>
+            <span className="text-xs font-medium ml-1">{t("profile:signOut")}</span>
           </Button>
         </div>
 
@@ -248,7 +249,7 @@ function ConsumerProfile() {
               <div className="min-w-0 flex-1 pt-4 pb-1 sm:pt-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
-                    <User className="size-3" /> Consumer Account
+                    <User className="size-3" /> {t("profile:consumerAccount")}
                   </span>
                 </div>
                 <h1 className="truncate font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1">
@@ -274,13 +275,13 @@ function ConsumerProfile() {
               <button
                 type="button"
                 onClick={() => void copyCode()}
-                title="Tap to copy collection code"
+                title={t("profile:tapToCopyCode")}
                 className="flex w-full sm:w-auto items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 px-3.5 py-2 font-mono text-xs font-bold tracking-wider text-primary transition-all active:scale-95 justify-between sm:justify-start"
               >
                 <div className="flex items-center gap-1.5">
                   <QrCode className="size-4 text-primary" />
                   <span>
-                    Code: <strong className="text-foreground">{code || "-"}</strong>
+                    {t("profile:code")}: <strong className="text-foreground">{code || "-"}</strong>
                   </span>
                 </div>
                 {copied ? (
@@ -304,8 +305,8 @@ function ConsumerProfile() {
                   <ClipboardList className="size-4" />
                 </span>
                 <div className="text-left leading-tight">
-                  <p className="text-xs font-bold text-foreground">My Waitlist</p>
-                  <p className="text-[10px] text-muted-foreground">Track gas status</p>
+                  <p className="text-xs font-bold text-foreground">{t("profile:myWaitlist")}</p>
+                  <p className="text-[10px] text-muted-foreground">{t("profile:trackGasStatus")}</p>
                 </div>
               </Link>
             </Button>
@@ -320,8 +321,10 @@ function ConsumerProfile() {
                   <Store className="size-4" />
                 </span>
                 <div className="text-left leading-tight">
-                  <p className="text-xs font-bold text-foreground">Gas Depots</p>
-                  <p className="text-[10px] text-muted-foreground">Find nearby stock</p>
+                  <p className="text-xs font-bold text-foreground">{t("profile:gasDepots")}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t("profile:findNearbyStock")}
+                  </p>
                 </div>
               </Link>
             </Button>
@@ -340,14 +343,16 @@ function ConsumerProfile() {
             >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <h2 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                  <Pencil className="size-4 text-primary" /> Edit Personal Information
+                  <Pencil className="size-4 text-primary" /> {t("profile:editPersonalInformation")}
                 </h2>
-                <span className="text-xs text-muted-foreground">Update your profile</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("profile:updateYourProfile")}
+                </span>
               </div>
 
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Full Name *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:fullName")} *</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={form.full_name}
@@ -357,7 +362,7 @@ function ConsumerProfile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Username</Label>
+                  <Label className="text-xs font-semibold">{t("profile:username")}</Label>
                   <Input
                     className="h-11 rounded-xl bg-muted/40"
                     value={profile?.username ?? ""}
@@ -365,12 +370,14 @@ function ConsumerProfile() {
                     disabled
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    System-assigned account identifier.
+                    {t("profile:systemAssignedIdentifier")}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Citizenship Number *</Label>
+                  <Label className="text-xs font-semibold">
+                    {t("profile:citizenshipNumber")} *
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       className="h-11 rounded-xl font-mono text-sm"
@@ -384,7 +391,11 @@ function ConsumerProfile() {
                       variant="outline"
                       size="icon"
                       className="h-11 w-11 shrink-0 rounded-xl"
-                      aria-label={reveal ? "Hide citizenship number" : "Show citizenship number"}
+                      aria-label={
+                        reveal
+                          ? t("profile:hideCitizenshipNumber")
+                          : t("profile:showCitizenshipNumber")
+                      }
                       onClick={() => setReveal((v) => !v)}
                     >
                       {reveal ? (
@@ -397,31 +408,31 @@ function ConsumerProfile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">District *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:district")} *</Label>
                   <Combobox
                     value={form.district}
                     onValueChange={(v) => setForm({ ...form, district: v })}
                     options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
-                    placeholder="Select district"
+                    placeholder={t("profile:selectDistrict")}
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Used for filtering local depots.
+                    {t("profile:districtFiltersLocal")}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Address *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:address")} *</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={form.address}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                     maxLength={160}
-                    placeholder="City, ward or landmark"
+                    placeholder={t("profile:cityWardLandmark")}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Phone Number</Label>
+                  <Label className="text-xs font-semibold">{t("profile:phoneNumber")}</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={form.phone}
@@ -432,7 +443,7 @@ function ConsumerProfile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Email Address</Label>
+                  <Label className="text-xs font-semibold">{t("profile:emailAddress")}</Label>
                   <Input
                     className="h-11 rounded-xl bg-muted/40"
                     value={profile?.email ?? user?.email ?? ""}
@@ -449,14 +460,15 @@ function ConsumerProfile() {
                   className="h-11 rounded-xl sm:flex-1"
                   onClick={() => setEditing(false)}
                 >
-                  Cancel
+                  {t("profile:cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={busy}
                   className="h-11 rounded-xl sm:flex-1 font-semibold"
                 >
-                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Changes
+                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}{" "}
+                  {t("profile:saveChanges")}
                 </Button>
               </div>
             </form>
@@ -478,10 +490,10 @@ function ConsumerProfile() {
                       </span>
                       <div>
                         <h2 className="font-display font-bold text-base text-foreground">
-                          Personal Details
+                          {t("profile:personalDetails")}
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                          Information verified by depots
+                          {t("profile:infoVerifiedByDepots")}
                         </p>
                       </div>
                     </div>
@@ -499,44 +511,44 @@ function ConsumerProfile() {
                   className="mr-3 h-9 shrink-0 rounded-xl gap-1.5 font-medium text-xs"
                   onClick={() => enterEdit()}
                 >
-                  <Pencil className="size-3.5" /> Edit Profile
+                  <Pencil className="size-3.5" /> {t("profile:editProfile")}
                 </Button>
               </div>
               <CollapsibleContent>
                 <div className="divide-y divide-border/40">
                   <MobileDetailRow
                     icon={User}
-                    label="Full Name"
+                    label={t("profile:fullName")}
                     value={profile?.full_name ?? "-"}
                   />
                   <MobileDetailRow
                     icon={AtSign}
-                    label="Username"
+                    label={t("profile:username")}
                     value={formatUsername(profile?.username)}
                   />
                   <MobileDetailRow
                     icon={FileText}
-                    label="Citizenship No."
+                    label={t("profile:citizenshipNo")}
                     value={maskCitizenship(profile?.citizenship_no)}
                   />
                   <MobileDetailRow
                     icon={MapPin}
-                    label="District"
+                    label={t("profile:district")}
                     value={profile?.district ?? "-"}
                   />
                   <MobileDetailRow
                     icon={MapPin}
-                    label="Local Address"
+                    label={t("profile:localAddress")}
                     value={profile?.address ?? "-"}
                   />
                   <MobileDetailRow
                     icon={Phone}
-                    label="Phone Number"
+                    label={t("profile:phoneNumber")}
                     value={profile?.phone ?? "-"}
                   />
                   <MobileDetailRow
                     icon={Mail}
-                    label="Email Address"
+                    label={t("profile:emailAddress")}
                     value={profile?.email ?? user?.email ?? "-"}
                   />
                 </div>
@@ -560,9 +572,9 @@ function ConsumerProfile() {
                     </span>
                     <div>
                       <h2 className="font-display font-bold text-base text-foreground">
-                        Collection QR Pass
+                        {t("profile:collectionQrPass")}
                       </h2>
-                      <p className="text-xs text-muted-foreground">Tap to toggle QR scan view</p>
+                      <p className="text-xs text-muted-foreground">{t("profile:tapToToggleQr")}</p>
                     </div>
                   </div>
                   <ChevronDown
@@ -585,9 +597,11 @@ function ConsumerProfile() {
                 </span>
                 <div>
                   <h2 className="font-display font-bold text-base text-foreground">
-                    Collection QR Pass
+                    {t("profile:collectionQrPass")}
                   </h2>
-                  <p className="text-xs text-muted-foreground">Present at depot counter</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("profile:presentAtDepotCounter")}
+                  </p>
                 </div>
               </div>
               <div className="p-6">{qrContent}</div>
@@ -602,7 +616,7 @@ function ConsumerProfile() {
         onClick={() => void handleSignOut()}
         className="h-12 w-full rounded-2xl border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 sm:hidden"
       >
-        <LogOut className="size-4" /> Sign out
+        <LogOut className="size-4" /> {t("profile:signOut")}
       </Button>
     </div>
   );
@@ -613,6 +627,7 @@ function ConsumerProfile() {
 /* ------------------------------------------------------------------ */
 
 function DealerProfile() {
+  const { t } = useTranslation();
   const { dealer, profile, user, sessionToken, signOut, refresh } = useAuth();
   const navigate = useNavigate();
   const updateProfile = useMutation(api.app.updateProfile);
@@ -692,7 +707,7 @@ function DealerProfile() {
     if (!user) return;
     const parsed = schema.safeParse({ ...ownerForm, citizenship_no: "" });
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Please check your details");
+      toast.error(parsed.error.issues[0]?.message ?? t("profile:checkDetails"));
       return;
     }
     setBusy(true);
@@ -704,7 +719,7 @@ function DealerProfile() {
         district: parsed.data.district,
         ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
       });
-      toast.success("Owner profile updated");
+      toast.success(t("profile:ownerProfileUpdated"));
       await refresh();
       setEditingOwner(false);
     } catch (error) {
@@ -718,11 +733,11 @@ function DealerProfile() {
     e.preventDefault();
     if (!user || !dealer) return;
     if (depotForm.business_name.trim().length < 2) {
-      toast.error("Please enter a valid business name");
+      toast.error(t("profile:validBusinessName"));
       return;
     }
     if (!depotForm.district.trim() || !depotForm.address.trim()) {
-      toast.error("District and address are required");
+      toast.error(t("profile:districtAndAddressRequired"));
       return;
     }
     setBusy(true);
@@ -735,7 +750,7 @@ function DealerProfile() {
         address: depotForm.address.trim(),
         ...(depotForm.phone.trim() ? { phone: depotForm.phone.trim() } : {}),
       });
-      toast.success("Depot information updated");
+      toast.success(t("profile:depotInformationUpdated"));
       await refresh();
       setEditingDepot(false);
     } catch (error) {
@@ -752,10 +767,10 @@ function DealerProfile() {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      toast.success("Depot code copied");
+      toast.success(t("profile:depotCodeCopied"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Could not copy - write it down instead");
+      toast.error(t("profile:copyFailed"));
     }
   };
 
@@ -773,9 +788,9 @@ function DealerProfile() {
       link.download = `yogas-depot-${dealer?.code ?? "qr"}.png`;
       link.href = dataUrl;
       link.click();
-      toast.success("Depot card downloaded");
+      toast.success(t("profile:depotCardDownloaded"));
     } catch {
-      toast.error("Could not export the depot card");
+      toast.error(t("profile:exportDepotCardFailed"));
     } finally {
       setDownloading(false);
     }
@@ -792,9 +807,7 @@ function DealerProfile() {
 
   const qrContent = (
     <div className="flex flex-col items-center text-center space-y-4">
-      <p className="text-xs text-muted-foreground max-w-xs">
-        Consumers scan this QR code to join your waitlist. Display it prominently at your counter.
-      </p>
+      <p className="text-xs text-muted-foreground max-w-xs">{t("profile:qrScanToJoinHint")}</p>
       <div className="mx-auto w-fit">
         <style>{`
           @media print {
@@ -825,7 +838,7 @@ function DealerProfile() {
               </span>
             </div>
             <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/90">
-              Depot Entry Pass
+              {t("profile:depotEntryPass")}
             </p>
           </div>
 
@@ -851,7 +864,7 @@ function DealerProfile() {
 
           <div className="border-t border-black/5 bg-muted/30 px-6 py-2.5">
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/80">
-              Scan to join the queue
+              {t("profile:scanToJoinQueue")}
             </p>
           </div>
         </div>
@@ -867,7 +880,7 @@ function DealerProfile() {
         ) : (
           <Copy className="size-4 mr-1.5" />
         )}
-        {copied ? "Copied" : "Copy Depot Code"}
+        {copied ? t("profile:copied") : t("profile:copyDepotCode")}
       </Button>
 
       <div className="grid w-full grid-cols-2 gap-2">
@@ -882,17 +895,17 @@ function DealerProfile() {
           ) : (
             <Download className="size-4 mr-1.5 text-primary" />
           )}
-          {downloading ? "Preparing…" : "Download"}
+          {downloading ? t("profile:preparing") : t("profile:download")}
         </Button>
 
         <Button variant="outline" className="h-11 rounded-xl" onClick={() => window.print()}>
-          <Printer className="size-4 mr-1.5 text-primary" /> Print Card
+          <Printer className="size-4 mr-1.5 text-primary" /> {t("profile:printCard")}
         </Button>
       </div>
 
       <Button asChild variant="secondary" className="w-full h-11 rounded-xl">
         <Link to="/dealer/stock">
-          <Boxes className="size-4 mr-1.5 text-primary" /> Manage Stock & Availability
+          <Boxes className="size-4 mr-1.5 text-primary" /> {t("profile:manageStockAvailability")}
         </Link>
       </Button>
     </div>
@@ -913,7 +926,7 @@ function DealerProfile() {
             className="absolute right-3 top-3 sm:right-4 sm:top-4 h-9 rounded-full bg-background/85 text-foreground backdrop-blur-md hover:bg-background border border-white/20"
           >
             <LogOut className="size-4 text-destructive" />
-            <span className="text-xs font-medium ml-1">Sign out</span>
+            <span className="text-xs font-medium ml-1">{t("profile:signOut")}</span>
           </Button>
         </div>
         <div className="px-4 sm:px-6 pb-5 sm:pb-6">
@@ -925,7 +938,7 @@ function DealerProfile() {
               <div className="min-w-0 flex-1 pt-4 pb-1 sm:pt-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
-                    <Store className="size-3" /> Depot Owner
+                    <Store className="size-3" /> {t("profile:depotOwner")}
                   </span>
                   {approval ? (
                     <span
@@ -962,17 +975,17 @@ function DealerProfile() {
           <div className="mt-5 grid grid-cols-3 gap-2">
             <Button asChild variant="outline" className="h-11 rounded-xl text-xs px-2 sm:px-4">
               <Link to="/dealer/waitlist">
-                <ClipboardList className="size-3.5 mr-1 text-primary" /> Waitlist
+                <ClipboardList className="size-3.5 mr-1 text-primary" /> {t("profile:waitlist")}
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-11 rounded-xl text-xs px-2 sm:px-4">
               <Link to="/dealer/stock">
-                <Boxes className="size-3.5 mr-1 text-primary" /> Stock
+                <Boxes className="size-3.5 mr-1 text-primary" /> {t("profile:stock")}
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-11 rounded-xl text-xs px-2 sm:px-4">
               <Link to="/dealer/scan">
-                <ScanLine className="size-3.5 mr-1 text-primary" /> Scan
+                <ScanLine className="size-3.5 mr-1 text-primary" /> {t("profile:scan")}
               </Link>
             </Button>
           </div>
@@ -989,52 +1002,54 @@ function DealerProfile() {
             >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <h2 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                  <Pencil className="size-4 text-primary" /> Edit Depot Information
+                  <Pencil className="size-4 text-primary" /> {t("profile:editDepotInformation")}
                 </h2>
-                <span className="text-xs text-muted-foreground">Public business details</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("profile:publicBusinessDetails")}
+                </span>
               </div>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Business Name *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:businessName")} *</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={depotForm.business_name}
                     onChange={(e) => setDepotForm({ ...depotForm, business_name: e.target.value })}
                     maxLength={90}
-                    placeholder="Depot business name"
+                    placeholder={t("profile:depotBusinessNamePlaceholder")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">License Number</Label>
+                  <Label className="text-xs font-semibold">{t("profile:licenseNumber")}</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={depotForm.license_no}
                     onChange={(e) => setDepotForm({ ...depotForm, license_no: e.target.value })}
                     maxLength={40}
-                    placeholder="LPG License No. (optional)"
+                    placeholder={t("profile:lpgLicensePlaceholder")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">District *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:district")} *</Label>
                   <Combobox
                     value={depotForm.district}
                     onValueChange={(v) => setDepotForm({ ...depotForm, district: v })}
                     options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
-                    placeholder="Select district"
+                    placeholder={t("profile:selectDistrict")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Address *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:address")} *</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={depotForm.address}
                     onChange={(e) => setDepotForm({ ...depotForm, address: e.target.value })}
                     maxLength={160}
-                    placeholder="Location, street, ward"
+                    placeholder={t("profile:locationStreetWard")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Contact Phone</Label>
+                  <Label className="text-xs font-semibold">{t("profile:contactPhone")}</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={depotForm.phone}
@@ -1051,15 +1066,15 @@ function DealerProfile() {
                   className="h-11 rounded-xl flex-1"
                   onClick={() => setEditingDepot(false)}
                 >
-                  Cancel
+                  {t("profile:cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={busy}
                   className="h-11 rounded-xl flex-1 font-semibold"
                 >
-                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Depot
-                  Details
+                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}{" "}
+                  {t("profile:saveDepotDetails")}
                 </Button>
               </div>
             </form>
@@ -1071,13 +1086,15 @@ function DealerProfile() {
             >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <h2 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                  <Pencil className="size-4 text-primary" /> Edit Owner Profile
+                  <Pencil className="size-4 text-primary" /> {t("profile:editOwnerProfile")}
                 </h2>
-                <span className="text-xs text-muted-foreground">Personal details</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("profile:personalDetailsSubtitle")}
+                </span>
               </div>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Full Name *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:fullName")} *</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={ownerForm.full_name}
@@ -1086,7 +1103,7 @@ function DealerProfile() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Username</Label>
+                  <Label className="text-xs font-semibold">{t("profile:username")}</Label>
                   <Input
                     className="h-11 rounded-xl bg-muted/40"
                     value={profile?.username ?? ""}
@@ -1095,16 +1112,16 @@ function DealerProfile() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">District *</Label>
+                  <Label className="text-xs font-semibold">{t("profile:district")} *</Label>
                   <Combobox
                     value={ownerForm.district}
                     onValueChange={(v) => setOwnerForm({ ...ownerForm, district: v })}
                     options={NEPAL_DISTRICTS.map((d) => ({ value: d, label: d }))}
-                    placeholder="Select district"
+                    placeholder={t("profile:selectDistrict")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Address</Label>
+                  <Label className="text-xs font-semibold">{t("profile:address")}</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={ownerForm.address}
@@ -1113,7 +1130,7 @@ function DealerProfile() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Phone</Label>
+                  <Label className="text-xs font-semibold">{t("profile:phone")}</Label>
                   <Input
                     className="h-11 rounded-xl"
                     value={ownerForm.phone}
@@ -1129,15 +1146,15 @@ function DealerProfile() {
                   className="h-11 rounded-xl flex-1"
                   onClick={() => setEditingOwner(false)}
                 >
-                  Cancel
+                  {t("profile:cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={busy}
                   className="h-11 rounded-xl flex-1 font-semibold"
                 >
-                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null} Save Owner
-                  Profile
+                  {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}{" "}
+                  {t("profile:saveOwnerProfile")}
                 </Button>
               </div>
             </form>
@@ -1161,10 +1178,10 @@ function DealerProfile() {
                         </span>
                         <div>
                           <h2 className="font-display font-bold text-base text-foreground">
-                            Depot Information
+                            {t("profile:depotInformation")}
                           </h2>
                           <p className="text-xs text-muted-foreground">
-                            Public business details seen by consumers
+                            {t("profile:publicBusinessDetailsSeenByConsumers")}
                           </p>
                         </div>
                       </div>
@@ -1182,26 +1199,34 @@ function DealerProfile() {
                     className="mr-3 h-9 shrink-0 rounded-xl gap-1.5 font-medium text-xs"
                     onClick={() => enterEditDepot()}
                   >
-                    <Pencil className="size-3.5" /> Edit Depot
+                    <Pencil className="size-3.5" /> {t("profile:editDepot")}
                   </Button>
                 </div>
                 <CollapsibleContent>
                   <div className="divide-y divide-border/40">
                     <MobileDetailRow
                       icon={Store}
-                      label="Business Name"
+                      label={t("profile:businessName")}
                       value={dealer.business_name}
                     />
                     <MobileDetailRow
                       icon={BadgeCheck}
-                      label="License No."
+                      label={t("profile:licenseNo")}
                       value={dealer.license_no ?? "-"}
                     />
-                    <MobileDetailRow icon={MapPin} label="District" value={dealer.district} />
-                    <MobileDetailRow icon={MapPin} label="Address" value={dealer.address ?? "-"} />
+                    <MobileDetailRow
+                      icon={MapPin}
+                      label={t("profile:district")}
+                      value={dealer.district}
+                    />
+                    <MobileDetailRow
+                      icon={MapPin}
+                      label={t("profile:address")}
+                      value={dealer.address ?? "-"}
+                    />
                     <MobileDetailRow
                       icon={Phone}
-                      label="Contact Phone"
+                      label={t("profile:contactPhone")}
                       value={dealer.phone ?? "-"}
                     />
                   </div>
@@ -1226,10 +1251,10 @@ function DealerProfile() {
                         </span>
                         <div>
                           <h2 className="font-display font-bold text-base text-foreground">
-                            Owner Account
+                            {t("profile:ownerAccount")}
                           </h2>
                           <p className="text-xs text-muted-foreground">
-                            Personal registration details
+                            {t("profile:personalRegistrationDetails")}
                           </p>
                         </div>
                       </div>
@@ -1247,25 +1272,29 @@ function DealerProfile() {
                     className="mr-3 h-9 shrink-0 rounded-xl gap-1.5 font-medium text-xs"
                     onClick={() => enterEditOwner()}
                   >
-                    <Pencil className="size-3.5" /> Edit Owner
+                    <Pencil className="size-3.5" /> {t("profile:editOwner")}
                   </Button>
                 </div>
                 <CollapsibleContent>
                   <div className="divide-y divide-border/40">
                     <MobileDetailRow
                       icon={User}
-                      label="Full Name"
+                      label={t("profile:fullName")}
                       value={profile?.full_name ?? "-"}
                     />
                     <MobileDetailRow
                       icon={AtSign}
-                      label="Username"
+                      label={t("profile:username")}
                       value={formatUsername(profile?.username)}
                     />
-                    <MobileDetailRow icon={Phone} label="Phone" value={profile?.phone ?? "-"} />
+                    <MobileDetailRow
+                      icon={Phone}
+                      label={t("profile:phone")}
+                      value={profile?.phone ?? "-"}
+                    />
                     <MobileDetailRow
                       icon={Mail}
-                      label="Email"
+                      label={t("profile:email")}
                       value={profile?.email ?? user?.email ?? "-"}
                     />
                   </div>
@@ -1290,10 +1319,10 @@ function DealerProfile() {
                     </span>
                     <div>
                       <h2 className="font-display font-bold text-base text-foreground">
-                        Depot QR Code
+                        {t("profile:depotQrCode")}
                       </h2>
                       <p className="text-xs text-muted-foreground">
-                        Customers scan to join waitlist
+                        {t("profile:customersScanToJoinWaitlist")}
                       </p>
                     </div>
                   </div>
@@ -1317,9 +1346,11 @@ function DealerProfile() {
                 </span>
                 <div>
                   <h2 className="font-display font-bold text-base text-foreground">
-                    Depot QR Code
+                    {t("profile:depotQrCode")}
                   </h2>
-                  <p className="text-xs text-muted-foreground">Customers scan to join queue</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("profile:customersScanToJoinQueue")}
+                  </p>
                 </div>
               </div>
               <div className="p-6">{qrContent}</div>
@@ -1334,7 +1365,7 @@ function DealerProfile() {
         onClick={() => void handleSignOut()}
         className="h-12 w-full rounded-2xl border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 sm:hidden"
       >
-        <LogOut className="size-4" /> Sign out
+        <LogOut className="size-4" /> {t("profile:signOut")}
       </Button>
     </div>
   );
@@ -1343,20 +1374,20 @@ function DealerProfile() {
 function approvalBadge(status: "pending" | "approved" | "rejected") {
   if (status === "approved") {
     return {
-      label: "Approved",
+      label: i18n.t("profile:approved"),
       icon: BadgeCheck,
       classes: "border-success/30 bg-success/10 text-success",
     };
   }
   if (status === "pending") {
     return {
-      label: "Pending",
+      label: i18n.t("profile:pending"),
       icon: Hourglass,
       classes: "border-warning/30 bg-warning/10 text-warning",
     };
   }
   return {
-    label: "Rejected",
+    label: i18n.t("profile:rejected"),
     icon: ShieldAlert,
     classes: "border-destructive/30 bg-destructive/10 text-destructive",
   };
@@ -1412,6 +1443,7 @@ function MobileDetailRow({
 /* ------------------------------------------------------------------ */
 
 function AdminProfile() {
+  const { t } = useTranslation();
   const { user, signOut, sessionToken } = useAuth();
   const navigate = useNavigate();
   const opts = sessionToken ? { sessionToken } : "skip";
@@ -1437,7 +1469,7 @@ function AdminProfile() {
             className="absolute right-3 top-3 sm:right-4 sm:top-4 h-9 rounded-full bg-background/85 text-foreground backdrop-blur-md hover:bg-background shadow-sm border border-border/40 transition-all active:scale-95"
           >
             <LogOut className="size-4 text-destructive" />
-            <span className="text-xs font-medium ml-1">Sign out</span>
+            <span className="text-xs font-medium ml-1">{t("profile:signOut")}</span>
           </Button>
         </div>
 
@@ -1450,11 +1482,11 @@ function AdminProfile() {
               <div className="min-w-0 flex-1 pt-4 pb-1 sm:pt-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                    <ShieldCheck className="size-3" /> System Administrator
+                    <ShieldCheck className="size-3" /> {t("profile:systemAdministrator")}
                   </span>
                 </div>
                 <h1 className="truncate font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1">
-                  Administrator
+                  {t("profile:administrator")}
                 </h1>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground">
                   <span className="flex items-center gap-1 font-medium text-foreground/80">
@@ -1470,7 +1502,7 @@ function AdminProfile() {
           <div className="mt-5">
             <Button asChild className="h-12 w-full rounded-2xl font-semibold shadow-soft">
               <Link to="/dashboard">
-                <Store className="size-4 mr-2" /> Open Admin Dashboard
+                <Store className="size-4 mr-2" /> {t("profile:openAdminDashboard")}
               </Link>
             </Button>
           </div>
@@ -1497,9 +1529,11 @@ function AdminProfile() {
                     </span>
                     <div>
                       <h2 className="font-display font-bold text-base text-foreground">
-                        Admin Credentials
+                        {t("profile:adminCredentials")}
                       </h2>
-                      <p className="text-xs text-muted-foreground">Platform governance account</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("profile:platformGovernanceAccount")}
+                      </p>
                     </div>
                   </div>
                   <ChevronDown
@@ -1515,19 +1549,23 @@ function AdminProfile() {
               <div className="divide-y divide-border/40">
                 <MobileDetailRow
                   icon={Mail}
-                  label="Account Email"
+                  label={t("profile:accountEmail")}
                   value={user?.email ?? "admin@YoGas.app"}
                 />
-                <MobileDetailRow icon={ShieldCheck} label="Role" value="System Administrator" />
+                <MobileDetailRow
+                  icon={ShieldCheck}
+                  label={t("profile:role")}
+                  value={t("profile:systemAdministrator")}
+                />
                 <MobileDetailRow
                   icon={BadgeCheck}
-                  label="Permissions"
-                  value="Full Platform Access"
+                  label={t("profile:permissions")}
+                  value={t("profile:fullPlatformAccess")}
                 />
                 <MobileDetailRow
                   icon={FileText}
-                  label="Authentication"
-                  value="PBKDF2 SHA-256 Verified"
+                  label={t("profile:authentication")}
+                  value={t("profile:pbkdf2Verified")}
                 />
               </div>
             </CollapsibleContent>
@@ -1549,8 +1587,12 @@ function AdminProfile() {
                   <Store className="size-4.5" />
                 </span>
                 <div>
-                  <h2 className="font-bold text-base text-foreground">Platform Overview</h2>
-                  <p className="text-xs text-muted-foreground">Live platform metrics</p>
+                  <h2 className="font-bold text-base text-foreground">
+                    {t("profile:platformOverview")}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {t("profile:livePlatformMetrics")}
+                  </p>
                 </div>
               </div>
               <ChevronDown
@@ -1565,25 +1607,27 @@ function AdminProfile() {
           <CollapsibleContent className="space-y-4">
             <div className="grid grid-cols-2 gap-2.5">
               <div className="rounded-2xl bg-muted/40 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Consumers</p>
+                <p className="text-xs text-muted-foreground">{t("profile:consumers")}</p>
                 <p className="font-display text-xl font-bold text-foreground mt-0.5">
                   {stats?.users ?? "-"}
                 </p>
               </div>
               <div className="rounded-2xl bg-muted/40 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Dealers</p>
+                <p className="text-xs text-muted-foreground">{t("profile:dealers")}</p>
                 <p className="font-display text-xl font-bold text-foreground mt-0.5">
                   {stats?.dealers ?? "-"}
                 </p>
               </div>
               <div className="rounded-2xl bg-muted/40 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Waitlist</p>
+                <p className="text-xs text-muted-foreground">{t("profile:waitlist")}</p>
                 <p className="font-display text-xl font-bold text-foreground mt-0.5">
                   {stats?.entries ?? "-"}
                 </p>
               </div>
               <div className="rounded-2xl bg-amber-500/10 p-3 text-center">
-                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Pending</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  {t("profile:pending")}
+                </p>
                 <p className="font-display text-xl font-bold text-amber-600 mt-0.5">
                   {stats?.pendingDealers ?? "-"}
                 </p>
@@ -1591,7 +1635,7 @@ function AdminProfile() {
             </div>
 
             <Button asChild className="w-full h-11 rounded-xl font-semibold mt-2">
-              <Link to="/dashboard">Go to Full Dashboard</Link>
+              <Link to="/dashboard">{t("profile:goToFullDashboard")}</Link>
             </Button>
           </CollapsibleContent>
         </Collapsible>
@@ -1603,7 +1647,7 @@ function AdminProfile() {
         onClick={() => void handleSignOut()}
         className="h-12 w-full rounded-2xl border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 sm:hidden"
       >
-        <LogOut className="size-4" /> Sign out
+        <LogOut className="size-4" /> {t("profile:signOut")}
       </Button>
     </div>
   );

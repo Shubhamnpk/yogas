@@ -1,0 +1,38 @@
+export const contact = {
+  en: {
+    title: "Contact us",
+    subtitle:
+      "Have a question about your queue, your depot, or YoGas in general? We'd love to hear from you.",
+    email: "Email",
+    emailBody: "Send us an email and we'll reply within one business day.",
+    phone: "Phone",
+    phoneBody: "Call us on the number below. Office hours: 9am - 5pm, Sunday to Friday.",
+    address: "Address",
+    addressBody: "Kathmandu, Nepal",
+    formName: "Name",
+    formEmail: "Email",
+    formSubject: "Subject",
+    formMessage: "Message",
+    formSubmit: "Send message",
+    formHint: "This opens your email app with a pre-filled message. We'll get back to you soon.",
+    faqLink: "Visit our FAQ",
+  },
+  ne: {
+    title: "सम्पर्क गर्नुहोस्",
+    subtitle:
+      "तपाईंको लाम, तपाईंको डिपो, वा योग्यासबारे कुनै सोध छ? हामीलाई सुन्न चाहन्छौं।",
+    email: "इमेल",
+    emailBody: "हामीलाई इमेल पठाउनुहोस्, हामीले व्यवसाय दिनभित्रै जवाफ दिनेछौं।",
+    phone: "फोन",
+    phoneBody: "तलको नम्बरमा फोन गर्नुहोस्। कार्यालयको समय: बिहीबारदेखि आइतबारसम्म ९ बजेदेखि ५ बजेसम्म।",
+    address: "ठेगाना",
+    addressBody: "काठमाडौं, नेपाल",
+    formName: "नाम",
+    formEmail: "इमेल",
+    formSubject: "विषय",
+    formMessage: "सन्देश",
+    formSubmit: "सन्देश पठाउनुहोस्",
+    formHint: "यो तपाईंको इमेल एपमा पहिले नै भरिएको सन्देश सहित खोल्छ। हामीले अर्कोति नै जवाफ दिनेछौं।",
+    faqLink: "हाम्रो प्रश्नोत्तर हेर्नुहोस्",
+  },
+} as const;

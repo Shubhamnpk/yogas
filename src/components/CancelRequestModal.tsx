@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { NativeModal, NativeModalFooter, NativeModalHeader } from "@/components/NativeModal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ export function CancelRequestModal({
   onConfirm: (reason: string) => void;
   busy?: boolean;
 }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState("");
   const canSubmit = reason.trim().length >= 3;
 
@@ -36,8 +38,8 @@ export function CancelRequestModal({
       }}
     >
       <NativeModalHeader
-        title="Cancel this request"
-        description={`Let ${consumerName} know why their request is being cancelled.`}
+        title={t("common:cancelRequest")}
+        description={t("common:cancelReasonPrompt", { name: consumerName })}
         onClose={() => {
           if (!busy) {
             onClose();
@@ -47,7 +49,7 @@ export function CancelRequestModal({
       />
       <div className="px-4 pb-4 sm:px-6 sm:pb-6">
         <div className="space-y-2">
-          <Label htmlFor="cancel-reason">Reason (required)</Label>
+          <Label htmlFor="cancel-reason">{t("common:reasonRequired")}</Label>
           <Textarea
             id="cancel-reason"
             value={reason}
@@ -55,12 +57,10 @@ export function CancelRequestModal({
             rows={3}
             maxLength={240}
             autoFocus
-            placeholder="e.g. Stock hasn't arrived, customer unreachable, duplicate request..."
+            placeholder={t("common:cancelReasonPlaceholder")}
           />
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground">
-              This is shared with the customer and saved to the audit log.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("common:cancelReasonNote")}</p>
             <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
               {reason.length}/240
             </p>
@@ -69,8 +69,8 @@ export function CancelRequestModal({
       </div>
       <NativeModalFooter>
         <Button variant="destructive" onClick={submit} disabled={busy || !canSubmit}>
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />} Cancel
-          request
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}{" "}
+          {t("common:cancelRequest")}
         </Button>
         <Button
           variant="outline"
@@ -81,7 +81,7 @@ export function CancelRequestModal({
             }
           }}
         >
-          Keep request
+          {t("common:keepRequest")}
         </Button>
       </NativeModalFooter>
     </NativeModal>

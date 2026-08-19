@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ type SwipeableCardsProps = {
 };
 
 export function SwipeableCards({ items }: SwipeableCardsProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
@@ -76,9 +78,7 @@ export function SwipeableCards({ items }: SwipeableCardsProps) {
                 <p className="mt-2 font-display text-3xl font-extrabold text-foreground">
                   {item.value}
                 </p>
-                {item.sub ? (
-                  <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
-                ) : null}
+                {item.sub ? <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p> : null}
               </div>
             </div>
           ))}
@@ -90,7 +90,7 @@ export function SwipeableCards({ items }: SwipeableCardsProps) {
             key={i}
             type="button"
             onClick={() => goTo(i)}
-            aria-label={`Go to card ${i + 1}`}
+            aria-label={t("common:goToCard", { count: i + 1 })}
             className={cn(
               "relative rounded-full transition-all duration-300",
               active === i
