@@ -64,8 +64,7 @@ function Landing() {
         d.businessName.toLowerCase().includes(depotSearch.toLowerCase()) ||
         d.district.toLowerCase().includes(depotSearch.toLowerCase());
       const matchesDistrict =
-        districtFilter === "all" ||
-        d.district.toLowerCase() === districtFilter.toLowerCase();
+        districtFilter === "all" || d.district.toLowerCase() === districtFilter.toLowerCase();
       return matchesSearch && matchesDistrict;
     });
   }, [dealers, depotSearch, districtFilter]);
@@ -73,7 +72,9 @@ function Landing() {
   const activeDistricts = useMemo(() => {
     if (!dealers) return [];
     const set = new Set<string>();
-    dealers.forEach((d) => { if (d.district) set.add(d.district); });
+    dealers.forEach((d) => {
+      if (d.district) set.add(d.district);
+    });
     return Array.from(set);
   }, [dealers]);
 
@@ -91,14 +92,18 @@ function Landing() {
             </span>
             <h1 className="text-4xl font-extrabold leading-[1.08] md:text-6xl text-foreground">
               {t("landing:heroTitle")}{" "}
-              <span className="text-flame tracking-tight block mt-1">{t("landing:heroTitleAccent")}</span>
+              <span className="text-flame tracking-tight block mt-1">
+                {t("landing:heroTitleAccent")}
+              </span>
             </h1>
             <p className="max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
               {t("landing:heroBody")}
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Button asChild size="lg" className="rounded-full px-6 shadow-lift">
-                <Link to="/auth">{t("landing:joinWaitlist")} <ArrowRight className="ml-1.5 size-4" /></Link>
+                <Link to="/auth">
+                  {t("landing:joinWaitlist")} <ArrowRight className="ml-1.5 size-4" />
+                </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full px-6 bg-card">
                 <Link to="/auth">{t("landing:registerDepot")}</Link>
@@ -138,14 +143,18 @@ function Landing() {
               >
                 <option value="all">{lang === "ne" ? "सबै जिल्ला" : "All Districts"}</option>
                 {activeDistricts.map((dist) => (
-                  <option key={dist} value={dist.toLowerCase()}>{dist}</option>
+                  <option key={dist} value={dist.toLowerCase()}>
+                    {dist}
+                  </option>
                 ))}
               </select>
             </div>
 
             <ul className="space-y-2.5 max-h-64 overflow-y-auto hide-scrollbars">
               {dealers === undefined ? (
-                <li className="text-center py-6 text-sm text-muted-foreground">{t("landing:loadingDepots")}</li>
+                <li className="text-center py-6 text-sm text-muted-foreground">
+                  {t("landing:loadingDepots")}
+                </li>
               ) : filteredDealers.length === 0 ? (
                 <li className="text-center py-6 text-xs text-muted-foreground">
                   {lang === "ne" ? "कुनै डिपो फेला परेन।" : "No matching depots active."}
@@ -154,7 +163,10 @@ function Landing() {
                 filteredDealers.slice(0, 5).map((d) => {
                   const s = stockLabel(d.stock);
                   return (
-                    <li key={d._id} className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-3 border border-border/40 hover:border-primary/20 transition-all duration-150">
+                    <li
+                      key={d._id}
+                      className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-3 border border-border/40 hover:border-primary/20 transition-all duration-150"
+                    >
                       <div>
                         <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                           <Building className="size-3 text-primary shrink-0" />
@@ -166,8 +178,12 @@ function Landing() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-display text-sm font-extrabold text-foreground">{formatNumber(d.stock)}</p>
-                        <p className={`text-[10px] font-bold ${s.tone === "success" ? "text-success" : s.tone === "warning" ? "text-warning" : "text-destructive"}`}>
+                        <p className="font-display text-sm font-extrabold text-foreground">
+                          {formatNumber(d.stock)}
+                        </p>
+                        <p
+                          className={`text-[10px] font-bold ${s.tone === "success" ? "text-success" : s.tone === "warning" ? "text-warning" : "text-destructive"}`}
+                        >
                           {t(s.key)}
                         </p>
                       </div>
@@ -178,8 +194,13 @@ function Landing() {
             </ul>
             {dealers && filteredDealers.length > 5 ? (
               <div className="text-center pt-3 border-t border-border/50 mt-3">
-                <Link to="/auth" className="text-xs font-semibold text-primary hover:underline flex items-center justify-center gap-1">
-                  +{filteredDealers.length - 5} {lang === "ne" ? "थप डिपोहरू" : "more active depots"} <ArrowRight className="size-3" />
+                <Link
+                  to="/auth"
+                  className="text-xs font-semibold text-primary hover:underline flex items-center justify-center gap-1"
+                >
+                  +{filteredDealers.length - 5}{" "}
+                  {lang === "ne" ? "थप डिपोहरू" : "more active depots"}{" "}
+                  <ArrowRight className="size-3" />
                 </Link>
               </div>
             ) : null}
@@ -192,23 +213,39 @@ function Landing() {
         <div className="mx-auto max-w-6xl px-4 grid gap-6 grid-cols-2 md:grid-cols-4 text-center">
           <div className="space-y-1">
             <p className="font-display text-3xl font-extrabold text-primary">OSS</p>
-            <p className="text-xs font-semibold text-foreground">{lang === "ne" ? "खुला स्रोत" : "Open Source"}</p>
-            <p className="text-[10px] text-muted-foreground">{lang === "ne" ? "सबैका लागि निःशुल्क" : "Free & transparent for all"}</p>
+            <p className="text-xs font-semibold text-foreground">
+              {lang === "ne" ? "खुला स्रोत" : "Open Source"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {lang === "ne" ? "सबैका लागि निःशुल्क" : "Free & transparent for all"}
+            </p>
           </div>
           <div className="space-y-1 border-l border-border/60">
             <p className="font-display text-3xl font-extrabold text-primary">2025</p>
-            <p className="text-xs font-semibold text-foreground">{lang === "ne" ? "शुरुवात भयो" : "Started"}</p>
-            <p className="text-[10px] text-muted-foreground">{lang === "ne" ? "यही वर्ष पाइलट" : "Pilot launched this year"}</p>
+            <p className="text-xs font-semibold text-foreground">
+              {lang === "ne" ? "शुरुवात भयो" : "Started"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {lang === "ne" ? "यही वर्ष पाइलट" : "Pilot launched this year"}
+            </p>
           </div>
           <div className="space-y-1 border-l border-border/60">
             <p className="font-display text-3xl font-extrabold text-primary">NP</p>
-            <p className="text-xs font-semibold text-foreground">{lang === "ne" ? "नेपालका लागि" : "Built for Nepal"}</p>
-            <p className="text-[10px] text-muted-foreground">{lang === "ne" ? "नेपाली परिवारका लागि" : "By the community, for the people"}</p>
+            <p className="text-xs font-semibold text-foreground">
+              {lang === "ne" ? "नेपालका लागि" : "Built for Nepal"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {lang === "ne" ? "नेपाली परिवारका लागि" : "By the community, for the people"}
+            </p>
           </div>
           <div className="space-y-1 border-l border-border/60">
             <p className="font-display text-3xl font-extrabold text-primary">0%</p>
-            <p className="text-xs font-semibold text-foreground">{lang === "ne" ? "व्यापारिक उद्देश्य" : "Commercial Motive"}</p>
-            <p className="text-[10px] text-muted-foreground">{lang === "ne" ? "नाफाका लागि होइन" : "Non-profit civic tech"}</p>
+            <p className="text-xs font-semibold text-foreground">
+              {lang === "ne" ? "व्यापारिक उद्देश्य" : "Commercial Motive"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {lang === "ne" ? "नाफाका लागि होइन" : "Non-profit civic tech"}
+            </p>
           </div>
         </div>
       </section>
@@ -224,13 +261,33 @@ function Landing() {
           </p>
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {[
-              { icon: Users, titleKey: "landing:stepJoin", bodyKey: "landing:stepJoinBody", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-              { icon: Bell, titleKey: "landing:stepTrack", bodyKey: "landing:stepTrackBody", color: "bg-primary/10 text-primary border-primary/20" },
-              { icon: QrCode, titleKey: "landing:stepCollect", bodyKey: "landing:stepCollectBody", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+              {
+                icon: Users,
+                titleKey: "landing:stepJoin",
+                bodyKey: "landing:stepJoinBody",
+                color: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+              },
+              {
+                icon: Bell,
+                titleKey: "landing:stepTrack",
+                bodyKey: "landing:stepTrackBody",
+                color: "bg-primary/10 text-primary border-primary/20",
+              },
+              {
+                icon: QrCode,
+                titleKey: "landing:stepCollect",
+                bodyKey: "landing:stepCollectBody",
+                color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+              },
             ].map((f, index) => (
-              <div key={f.titleKey} className="rounded-2xl border border-border bg-card p-6 shadow-soft relative overflow-hidden group hover:border-primary/30 transition-all duration-200">
+              <div
+                key={f.titleKey}
+                className="rounded-2xl border border-border bg-card p-6 shadow-soft relative overflow-hidden group hover:border-primary/30 transition-all duration-200"
+              >
                 <div className="absolute top-0 left-0 w-full h-1 bg-muted group-hover:bg-primary transition-colors" />
-                <span className={`inline-flex size-10 items-center justify-center rounded-xl font-bold text-sm ${f.color} border mb-4`}>
+                <span
+                  className={`inline-flex size-10 items-center justify-center rounded-xl font-bold text-sm ${f.color} border mb-4`}
+                >
                   {index + 1}
                 </span>
                 <h3 className="text-lg font-bold text-foreground">{t(f.titleKey)}</h3>
@@ -257,9 +314,18 @@ function Landing() {
               <Users className="size-5 text-primary" /> {t("landing:forConsumers")}
             </h2>
             <ol className="mt-6 space-y-4 text-sm text-muted-foreground">
-              {(["landing:consumerStep1","landing:consumerStep2","landing:consumerStep3","landing:consumerStep4"] as const).map((key, i) => (
+              {(
+                [
+                  "landing:consumerStep1",
+                  "landing:consumerStep2",
+                  "landing:consumerStep3",
+                  "landing:consumerStep4",
+                ] as const
+              ).map((key, i) => (
                 <li key={key} className="flex gap-3">
-                  <span className="font-bold text-primary bg-primary/10 rounded-full size-5 flex items-center justify-center shrink-0 text-xs">{i+1}</span>
+                  <span className="font-bold text-primary bg-primary/10 rounded-full size-5 flex items-center justify-center shrink-0 text-xs">
+                    {i + 1}
+                  </span>
                   <span>{t(key)}</span>
                 </li>
               ))}
@@ -271,9 +337,18 @@ function Landing() {
               <Store className="size-5 text-primary-glow" /> {t("landing:forDealers")}
             </h2>
             <ol className="mt-6 space-y-4 text-sm text-muted-foreground">
-              {(["landing:dealerStep1","landing:dealerStep2","landing:dealerStep3","landing:dealerStep4"] as const).map((key, i) => (
+              {(
+                [
+                  "landing:dealerStep1",
+                  "landing:dealerStep2",
+                  "landing:dealerStep3",
+                  "landing:dealerStep4",
+                ] as const
+              ).map((key, i) => (
                 <li key={key} className="flex gap-3">
-                  <span className="font-bold text-primary-glow bg-primary-glow/10 rounded-full size-5 flex items-center justify-center shrink-0 text-xs">{i+1}</span>
+                  <span className="font-bold text-primary-glow bg-primary-glow/10 rounded-full size-5 flex items-center justify-center shrink-0 text-xs">
+                    {i + 1}
+                  </span>
                   <span>{t(key)}</span>
                 </li>
               ))}
@@ -287,32 +362,54 @@ function Landing() {
         <div className="mx-auto max-w-4xl px-4 space-y-12">
           <div className="text-center space-y-2">
             <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">
-              {lang === "ne" ? "पक्षपात र कालोबजारी नियन्त्रण" : "Anti-Hoarding & Fair Lines Pillars"}
+              {lang === "ne"
+                ? "पक्षपात र कालोबजारी नियन्त्रण"
+                : "Anti-Hoarding & Fair Lines Pillars"}
             </h2>
             <p className="text-muted-foreground text-sm max-w-md mx-auto">
-              {lang === "ne" ? "डबल बुकिङ रोक्ने र नागरिकता प्रमाणीकरण गर्ने नियमहरू" : "Built-in checks to ensure gas reaches genuine families."}
+              {lang === "ne"
+                ? "डबल बुकिङ रोक्ने र नागरिकता प्रमाणीकरण गर्ने नियमहरू"
+                : "Built-in checks to ensure gas reaches genuine families."}
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-3">
             <div className="bg-card rounded-2xl border border-border p-6 shadow-soft space-y-3">
-              <div className="size-8 rounded-full bg-primary/15 text-primary grid place-items-center"><Users className="size-4" /></div>
-              <h3 className="font-bold text-foreground text-sm">{lang === "ne" ? "१ नागरिक = १ लाम स्थान" : "1 Citizen = 1 Spot"}</h3>
+              <div className="size-8 rounded-full bg-primary/15 text-primary grid place-items-center">
+                <Users className="size-4" />
+              </div>
+              <h3 className="font-bold text-foreground text-sm">
+                {lang === "ne" ? "१ नागरिक = १ लाम स्थान" : "1 Citizen = 1 Spot"}
+              </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {lang === "ne" ? "प्रणालीमा दोहोरो वा नक्कली परिचय दर्ता गर्न मिल्दैन। यसले बिचौलियालाई नियन्त्रण गर्छ।" : "Every consumer signs up with a verified citizenship number, keeping hoarding lines clean."}
+                {lang === "ne"
+                  ? "प्रणालीमा दोहोरो वा नक्कली परिचय दर्ता गर्न मिल्दैन। यसले बिचौलियालाई नियन्त्रण गर्छ।"
+                  : "Every consumer signs up with a verified citizenship number, keeping hoarding lines clean."}
               </p>
             </div>
             <div className="bg-card rounded-2xl border border-border p-6 shadow-soft space-y-3">
-              <div className="size-8 rounded-full bg-primary/15 text-primary grid place-items-center"><QrCode className="size-4" /></div>
-              <h3 className="font-bold text-foreground text-sm">{lang === "ne" ? "स्वचालित रूपमा रद्द" : "Auto-Cancellation"}</h3>
+              <div className="size-8 rounded-full bg-primary/15 text-primary grid place-items-center">
+                <QrCode className="size-4" />
+              </div>
+              <h3 className="font-bold text-foreground text-sm">
+                {lang === "ne" ? "स्वचालित रूपमा रद्द" : "Auto-Cancellation"}
+              </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {lang === "ne" ? "कुनै एक डिपोमा सिलिन्डर बुझिलिएमा अन्य डिपोका बाँकी अनुरोध स्वतः रद्द हुन्छन्।" : "Once you collect a cylinder, your active requests at other depots are automatically cancelled."}
+                {lang === "ne"
+                  ? "कुनै एक डिपोमा सिलिन्डर बुझिलिएमा अन्य डिपोका बाँकी अनुरोध स्वतः रद्द हुन्छन्।"
+                  : "Once you collect a cylinder, your active requests at other depots are automatically cancelled."}
               </p>
             </div>
             <div className="bg-card rounded-2xl border border-border p-6 shadow-soft space-y-3">
-              <div className="size-8 rounded-full bg-primary/15 text-primary grid place-items-center"><ShieldCheck className="size-4" /></div>
-              <h3 className="font-bold text-foreground text-sm">{lang === "ne" ? "सङ्कलन कूलडाउन" : "Allotment Cooldown"}</h3>
+              <div className="size-8 rounded-full bg-primary/15 text-primary grid place-items-center">
+                <ShieldCheck className="size-4" />
+              </div>
+              <h3 className="font-bold text-foreground text-sm">
+                {lang === "ne" ? "सङ्कलन कूलडाउन" : "Allotment Cooldown"}
+              </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {lang === "ne" ? "ग्यास प्राप्त गरेपछि अर्को बुकिङ गर्न डिपोले तोकेको कूलडाउन समय कुर्नुपर्छ।" : "Depots enforce cooling-off days post-handover so each neighbor gets their cylinder next."}
+                {lang === "ne"
+                  ? "ग्यास प्राप्त गरेपछि अर्को बुकिङ गर्न डिपोले तोकेको कूलडाउन समय कुर्नुपर्छ।"
+                  : "Depots enforce cooling-off days post-handover so each neighbor gets their cylinder next."}
               </p>
             </div>
           </div>
@@ -325,10 +422,13 @@ function Landing() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/20">
-            <Sprout className="size-3.5" /> {lang === "ne" ? "प्रारम्भिक चरणको परियोजना" : "Early-Stage Project"}
+            <Sprout className="size-3.5" />{" "}
+            {lang === "ne" ? "प्रारम्भिक चरणको परियोजना" : "Early-Stage Project"}
           </div>
           <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
-            {lang === "ne" ? "तपाईं पहिलो प्रयोगकर्ता हुन सक्नुहुन्छ!" : "You Could Be Our First Story"}
+            {lang === "ne"
+              ? "तपाईं पहिलो प्रयोगकर्ता हुन सक्नुहुन्छ!"
+              : "You Could Be Our First Story"}
           </h2>
           <p className="text-muted-foreground text-sm max-w-xl mx-auto leading-relaxed">
             {lang === "ne"
@@ -336,15 +436,25 @@ function Landing() {
               : "YoGas is a fresh, independent civic tech project launched in 2025. No fake reviews, no inflated stats. If it helps you, we'd love to hear."}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
-            <a href="https://github.com/shubhamnpk/yogas/issues" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift hover:opacity-90 transition-opacity">
+            <a
+              href="https://github.com/shubhamnpk/yogas/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift hover:opacity-90 transition-opacity"
+            >
               {lang === "ne" ? "GitHub मा प्रतिक्रिया दिनुहोस्" : "Share Feedback on GitHub"}
             </a>
-            <Link to="/contact" className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground hover:bg-accent transition-colors">
+            <Link
+              to="/contact"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
+            >
               {lang === "ne" ? "सम्पर्क गर्नुहोस्" : "Contact Us Directly"}
             </Link>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            {lang === "ne" ? "यो एउटा खुला स्रोत परियोजना हो। कुनै व्यावसायिक उद्देश्य छैन।" : "Open-source, non-commercial civic tech. No investors, no ads."}
+            {lang === "ne"
+              ? "यो एउटा खुला स्रोत परियोजना हो। कुनै व्यावसायिक उद्देश्य छैन।"
+              : "Open-source, non-commercial civic tech. No investors, no ads."}
           </p>
         </div>
       </section>
@@ -361,7 +471,11 @@ function Landing() {
           <div className="mt-10 max-w-3xl mx-auto">
             <Accordion type="single" collapsible className="w-full space-y-3">
               {faqIndexes.map((i) => (
-                <AccordionItem value={String(i)} key={i} className="border border-border bg-card rounded-2xl px-5 py-1 shadow-soft">
+                <AccordionItem
+                  value={String(i)}
+                  key={i}
+                  className="border border-border bg-card rounded-2xl px-5 py-1 shadow-soft"
+                >
                   <AccordionTrigger className="text-left text-base font-semibold hover:no-underline text-foreground">
                     {lang === "ne" ? faq.ne.items[i]?.q : faq.en.items[i]?.q}
                   </AccordionTrigger>
@@ -392,13 +506,24 @@ function Landing() {
             {t("landing:ctaBody")}
           </p>
           <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center items-center">
-            <Button asChild size="lg" variant="secondary" className="rounded-full shadow-soft font-semibold text-primary px-8">
+            <Button
+              asChild
+              size="lg"
+              variant="secondary"
+              className="rounded-full shadow-soft font-semibold text-primary px-8"
+            >
               <Link to="/auth">
                 {t("landing:getStarted")} <ArrowRight className="ml-1.5 size-4" />
               </Link>
             </Button>
-            <a href="https://github.com/shubhamnpk/yogas" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-white/80 font-medium hover:text-white transition-colors underline">
-              <Star className="size-3.5 fill-current" /> {lang === "ne" ? "GitHub मा स्टार दिनुहोस्" : "Star us on GitHub"}
+            <a
+              href="https://github.com/shubhamnpk/yogas"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-white/80 font-medium hover:text-white transition-colors underline"
+            >
+              <Star className="size-3.5 fill-current" />{" "}
+              {lang === "ne" ? "GitHub मा स्टार दिनुहोस्" : "Star us on GitHub"}
             </a>
           </div>
         </div>

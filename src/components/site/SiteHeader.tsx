@@ -69,7 +69,12 @@ export function SiteHeader() {
           <div className="md:hidden">
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" aria-label={t("site:menu")} className="rounded-full">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={t("site:menu")}
+                  className="rounded-full"
+                >
                   <Menu className="size-5" />
                 </Button>
               </SheetTrigger>
@@ -78,17 +83,25 @@ export function SiteHeader() {
                   <div className="flex items-center gap-2 border-b border-border pb-4">
                     <Logo />
                   </div>
-                  
+
                   <nav className="flex flex-col gap-2">
                     <NavLinks mobile close={close} />
                   </nav>
-                  
+
                   <div className="border-t border-border pt-6 flex flex-col gap-4">
                     <div className="flex justify-between items-center px-2">
-                      <span className="text-xs text-muted-foreground font-semibold">{lang === "ne" ? "भाषा / Language" : "Select Language"}</span>
+                      <span className="text-xs text-muted-foreground font-semibold">
+                        {lang === "ne" ? "भाषा / Language" : "Select Language"}
+                      </span>
                       <LanguageToggle />
                     </div>
-                    <Button asChild size="lg" variant="default" className="rounded-xl w-full" onClick={close}>
+                    <Button
+                      asChild
+                      size="lg"
+                      variant="default"
+                      className="rounded-xl w-full"
+                      onClick={close}
+                    >
                       <Link to="/auth">{t("site:signIn")}</Link>
                     </Button>
                   </div>

@@ -17,7 +17,11 @@ export const Route = createFileRoute("/_site/faq")({
   head: () => ({
     meta: [
       { title: "FAQ - YoGas LPG Waitlist" },
-      { name: "description", content: "Frequently asked questions about YoGas, the virtual LPG queue for Nepali households." },
+      {
+        name: "description",
+        content:
+          "Frequently asked questions about YoGas, the virtual LPG queue for Nepali households.",
+      },
     ],
   }),
   component: FAQPage,
@@ -29,7 +33,7 @@ function FAQPage() {
   const { t } = useTranslation();
   const lang = appLocale();
   const items = lang === "ne" ? faq.ne.items : faq.en.items;
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category>("all");
 
@@ -38,29 +42,43 @@ function FAQPage() {
     return items.map((item, index) => {
       let category: Category = "consumer";
       const textToScan = (item.q + " " + item.a).toLowerCase();
-      
-      if (textToScan.includes("dealer") || textToScan.includes("डिलर") || textToScan.includes("डिपो") || textToScan.includes("stock") || textToScan.includes("स्टक")) {
+
+      if (
+        textToScan.includes("dealer") ||
+        textToScan.includes("डिलर") ||
+        textToScan.includes("डिपो") ||
+        textToScan.includes("stock") ||
+        textToScan.includes("स्टक")
+      ) {
         category = "dealer";
-      } else if (textToScan.includes("citizenship") || textToScan.includes("नागरिकता") || textToScan.includes("cooldown") || textToScan.includes("कूलडाउन") || textToScan.includes("security") || textToScan.includes("सुरक्षित")) {
+      } else if (
+        textToScan.includes("citizenship") ||
+        textToScan.includes("नागरिकता") ||
+        textToScan.includes("cooldown") ||
+        textToScan.includes("कूलडाउन") ||
+        textToScan.includes("security") ||
+        textToScan.includes("सुरक्षित")
+      ) {
         category = "security";
       }
-      
+
       return {
         ...item,
         category,
-        id: `faq-${index}`
+        id: `faq-${index}`,
       };
     });
   }, [items]);
 
   // Filter FAQs based on search and category tabs
   const filteredItems = useMemo(() => {
-    return categorizedItems.filter(item => {
+    return categorizedItems.filter((item) => {
       const matchesCategory = activeCategory === "all" || item.category === activeCategory;
-      const matchesSearch = searchQuery === "" || 
-        item.q.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchesSearch =
+        searchQuery === "" ||
+        item.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.a.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       return matchesCategory && matchesSearch;
     });
   }, [categorizedItems, activeCategory, searchQuery]);
@@ -69,7 +87,10 @@ function FAQPage() {
     { id: "all" as Category, label: lang === "ne" ? "सबै प्रश्नहरू" : "All Questions" },
     { id: "consumer" as Category, label: lang === "ne" ? "उपभोक्ता र परिवार" : "For Consumers" },
     { id: "dealer" as Category, label: lang === "ne" ? "डिलर र डिपोहरू" : "For Depots" },
-    { id: "security" as Category, label: lang === "ne" ? "सुरक्षा र कोटा नियम" : "Quota & Security" },
+    {
+      id: "security" as Category,
+      label: lang === "ne" ? "सुरक्षा र कोटा नियम" : "Quota & Security",
+    },
   ];
 
   return (
@@ -92,7 +113,9 @@ function FAQPage() {
         <div className="relative max-w-md mx-auto">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder={lang === "ne" ? "प्रश्नोत्तर खोज्नुहोस्..." : "Search questions or keywords..."}
+            placeholder={
+              lang === "ne" ? "प्रश्नोत्तर खोज्नुहोस्..." : "Search questions or keywords..."
+            }
             className="pl-10 h-11 bg-card border-border rounded-xl shadow-soft"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -126,7 +149,9 @@ function FAQPage() {
               {lang === "ne" ? "कुनै नतिजा भेटिएन" : "No results match your search"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {lang === "ne" ? "कृपया फरक शब्द प्रयोग गरी पुन: प्रयास गर्नुहोस्।" : "Try adjusting your search keywords or categories."}
+              {lang === "ne"
+                ? "कृपया फरक शब्द प्रयोग गरी पुन: प्रयास गर्नुहोस्।"
+                : "Try adjusting your search keywords or categories."}
             </p>
           </div>
         ) : (
@@ -157,7 +182,7 @@ function FAQPage() {
               {lang === "ne" ? "तपाईंको प्रश्नको उत्तर भेटिएन?" : "Still have questions?"}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {lang === "ne" 
+              {lang === "ne"
                 ? "हाम्रो नागरिक सहायता टिम तपाईंलाई सहयोग गर्न तयार छ। हामीलाई सिधै सम्पर्क गर्नुहोस् वा सन्देश पठाउनुहोस्।"
                 : "Our consumer support team is online 9 AM - 5 PM to assist you with registration, citizenship verification, or dealer onboarding."}
             </p>

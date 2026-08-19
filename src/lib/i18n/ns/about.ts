@@ -13,21 +13,18 @@ export const about = {
     },
     mission: {
       title: "Our mission",
-      body:
-        "To make LPG cylinder distribution in Nepal fair, transparent and stress-free by replacing physical queues with a trusted virtual line that anyone can join and everyone can verify.",
+      body: "To make LPG cylinder distribution in Nepal fair, transparent and stress-free by replacing physical queues with a trusted virtual line that anyone can join and everyone can verify.",
     },
     values: {
       title: "What we stand for",
       items: [
         {
           title: "Transparency",
-          body:
-            "Your position in the queue is live and visible to everyone. No hidden allotments.",
+          body: "Your position in the queue is live and visible to everyone. No hidden allotments.",
         },
         {
           title: "Identity",
-          body:
-            "One citizenship number, one place in the line. Repeat requests and hoarding have nowhere to hide.",
+          body: "One citizenship number, one place in the line. Repeat requests and hoarding have nowhere to hide.",
         },
         {
           title: "Fairness",
@@ -44,8 +41,7 @@ export const about = {
   },
   ne: {
     title: "योग्यासको बारेमा",
-    subtitle:
-      "हरेक नेपाली घरपरिवारका लागि निष्पक्ष, पारदर्शी LPG पर्खाइ सूची निर्माण गर्दै।",
+    subtitle: "हरेक नेपाली घरपरिवारका लागि निष्पक्ष, पारदर्शी LPG पर्खाइ सूची निर्माण गर्दै।",
     story: {
       title: "हाम्रो कथा",
       body1:
@@ -57,21 +53,18 @@ export const about = {
     },
     mission: {
       title: "हाम्रो उद्देश्य",
-      body:
-        "नेपालमा LPG सिलिन्डर वितरणलाई न्यायपूर्ण, पारदर्शी र तनावमुक्त बनाउन भौतिक लाम्मा एउटा भर्ट भर्चुअल पर्खाइ सूचीले सम्पन्न गर्नु हाम्रो उद्देश्य हो जसले कुनैले पनि जोड्न सकोस् र सबैले पुष्टि गर्न सकोस्।",
+      body: "नेपालमा LPG सिलिन्डर वितरणलाई न्यायपूर्ण, पारदर्शी र तनावमुक्त बनाउन भौतिक लाम्मा एउटा भर्ट भर्चुअल पर्खाइ सूचीले सम्पन्न गर्नु हाम्रो उद्देश्य हो जसले कुनैले पनि जोड्न सकोस् र सबैले पुष्टि गर्न सकोस्।",
     },
     values: {
       title: "हामीले केको हाम्मा राख्छौं",
       items: [
         {
           title: "पारदर्शिता",
-          body:
-            "तपाईंको पर्खाइ सूचीमा क्रम लाइभ र सबैले हेर्न सक्ने छ। हुँदै नआएको अनुलेखन छैन।",
+          body: "तपाईंको पर्खाइ सूचीमा क्रम लाइभ र सबैले हेर्न सक्ने छ। हुँदै नआएको अनुलेखन छैन।",
         },
         {
           title: "पहिचान",
-          body:
-            "एउटा नागरिकता नम्बर, लाममा एक स्थान। दोहोरो अनुरोध र भण्डारणलाई छिपाउने ठाउँ छैन।",
+          body: "एउटा नागरिकता नम्बर, लाममा एक स्थान। दोहोरो अनुरोध र भण्डारणलाई छिपाउने ठाउँ छैन।",
         },
         {
           title: "न्याय",

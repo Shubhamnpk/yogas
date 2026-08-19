@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 export function LanguageToggle({
   variant = "ghost",
   size = "sm",
-}: { variant?: "default" | "outline" | "ghost" | "destructive" | "secondary" | "link"; size?: "default" | "sm" | "lg" }) {
+}: {
+  variant?: "default" | "outline" | "ghost" | "destructive" | "secondary" | "link";
+  size?: "default" | "sm" | "lg";
+}) {
   const locale = appLocale();
   return (
     <div className="flex items-center gap-1.5 rounded-xl bg-secondary px-1.5 py-1 text-xs font-medium text-muted-foreground">

@@ -14,7 +14,10 @@ export const Route = createFileRoute("/_site/contact")({
   head: () => ({
     meta: [
       { title: "Contact - YoGas Support" },
-      { name: "description", content: "Contact us about your queue, depot, or general questions about YoGas." },
+      {
+        name: "description",
+        content: "Contact us about your queue, depot, or general questions about YoGas.",
+      },
     ],
   }),
   component: ContactPage,
@@ -37,7 +40,11 @@ function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !message) {
-      toast.error(lang === "ne" ? "कृपया सबै आवश्यक क्षेत्रहरू भर्नुहोस्।" : "Please fill in all required fields.");
+      toast.error(
+        lang === "ne"
+          ? "कृपया सबै आवश्यक क्षेत्रहरू भर्नुहोस्।"
+          : "Please fill in all required fields.",
+      );
       return;
     }
 
@@ -51,7 +58,9 @@ function ContactPage() {
 
   const handleSendMailto = () => {
     const mailSubject = encodeURIComponent(`YoGas [${topic}] - ${subject || "Support Inquiry"}`);
-    const mailBody = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nTopic: ${topic}\n\nMessage:\n${message}`);
+    const mailBody = encodeURIComponent(
+      `Name: ${name}\nEmail: ${email}\nTopic: ${topic}\n\nMessage:\n${message}`,
+    );
     window.location.href = `mailto:support@yogas.app?subject=${mailSubject}&body=${mailBody}`;
   };
 
@@ -62,8 +71,12 @@ function ContactPage() {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
           <Phone className="size-3.5" /> Support Center
         </span>
-        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-5xl">{t("contact:title")}</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground text-base md:text-lg leading-relaxed">{t("contact:subtitle")}</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-5xl">
+          {t("contact:title")}
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground text-base md:text-lg leading-relaxed">
+          {t("contact:subtitle")}
+        </p>
       </div>
 
       <div className="grid gap-12 md:grid-cols-12 items-start">
@@ -83,8 +96,16 @@ function ContactPage() {
               <MapPin className="size-6 text-primary shrink-0 mt-1" />
               <div className="space-y-1">
                 <h3 className="font-bold text-foreground">{lang === "ne" ? "नेपाल" : "Nepal"}</h3>
-                <p className="text-sm text-foreground/80">{lang === "ne" ? "काठमाडौं उपत्यका (अनलाइन परियोजना)" : "Kathmandu Valley (Remote / Online)"}</p>
-                <p className="text-xs text-muted-foreground">{lang === "ne" ? "यो एउटा स्वतन्त्र OSS परियोजना हो।" : "This is an independent OSS project."}</p>
+                <p className="text-sm text-foreground/80">
+                  {lang === "ne"
+                    ? "काठमाडौं उपत्यका (अनलाइन परियोजना)"
+                    : "Kathmandu Valley (Remote / Online)"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "ne"
+                    ? "यो एउटा स्वतन्त्र OSS परियोजना हो।"
+                    : "This is an independent OSS project."}
+                </p>
               </div>
             </div>
           </div>
@@ -120,7 +141,11 @@ function ContactPage() {
             </div>
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-secondary p-2 rounded-lg border border-border/50 mt-3">
               <ShieldCheck className="size-3.5 shrink-0 text-primary" />
-              <span>{lang === "ne" ? "यो परियोजना गैरव्यावसायिक र खुला स्रोत हो।" : "Non-commercial, open-source civic tech project."}</span>
+              <span>
+                {lang === "ne"
+                  ? "यो परियोजना गैरव्यावसायिक र खुला स्रोत हो।"
+                  : "Non-commercial, open-source civic tech project."}
+              </span>
             </div>
           </div>
         </div>
@@ -156,7 +181,9 @@ function ContactPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-xs font-bold">{c.formName} *</Label>
+                  <Label htmlFor="name" className="text-xs font-bold">
+                    {c.formName} *
+                  </Label>
                   <Input
                     id="name"
                     required
@@ -166,7 +193,9 @@ function ContactPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-xs font-bold">{c.formEmail} *</Label>
+                  <Label htmlFor="email" className="text-xs font-bold">
+                    {c.formEmail} *
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -180,21 +209,33 @@ function ContactPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="topic" className="text-xs font-bold">{lang === "ne" ? "सम्पर्कको विषय" : "Topic Category"}</Label>
+                  <Label htmlFor="topic" className="text-xs font-bold">
+                    {lang === "ne" ? "सम्पर्कको विषय" : "Topic Category"}
+                  </Label>
                   <select
                     id="topic"
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                   >
-                    <option value="general">{lang === "ne" ? "साधारण सोधपुछ" : "General Inquiry"}</option>
-                    <option value="depot">{lang === "ne" ? "डिलर / डिपो अनबोर्डिङ" : "Dealer/Depot Partnership"}</option>
-                    <option value="quota">{lang === "ne" ? "कोटा र नागरिकता समस्या" : "Quota / Verification Issue"}</option>
-                    <option value="bug">{lang === "ne" ? "एपमा समस्या / बग रिपोर्ट" : "App Bug Report"}</option>
+                    <option value="general">
+                      {lang === "ne" ? "साधारण सोधपुछ" : "General Inquiry"}
+                    </option>
+                    <option value="depot">
+                      {lang === "ne" ? "डिलर / डिपो अनबोर्डिङ" : "Dealer/Depot Partnership"}
+                    </option>
+                    <option value="quota">
+                      {lang === "ne" ? "कोटा र नागरिकता समस्या" : "Quota / Verification Issue"}
+                    </option>
+                    <option value="bug">
+                      {lang === "ne" ? "एपमा समस्या / बग रिपोर्ट" : "App Bug Report"}
+                    </option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subject" className="text-xs font-bold">{c.formSubject}</Label>
+                  <Label htmlFor="subject" className="text-xs font-bold">
+                    {c.formSubject}
+                  </Label>
                   <Input
                     id="subject"
                     placeholder={lang === "ne" ? "ग्याँस र लामको विषय" : "e.g. Queue waiting error"}
@@ -205,11 +246,17 @@ function ContactPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="message" className="text-xs font-bold">{c.formMessage} *</Label>
+                <Label htmlFor="message" className="text-xs font-bold">
+                  {c.formMessage} *
+                </Label>
                 <Textarea
                   id="message"
                   required
-                  placeholder={lang === "ne" ? "तपाईंको प्रश्न वा समस्या यहाँ लेख्नुहोस्..." : "Write your inquiry details here..."}
+                  placeholder={
+                    lang === "ne"
+                      ? "तपाईंको प्रश्न वा समस्या यहाँ लेख्नुहोस्..."
+                      : "Write your inquiry details here..."
+                  }
                   rows={4}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -225,7 +272,11 @@ function ContactPage() {
 
               <div className="flex items-center gap-2 justify-center text-[10px] text-muted-foreground border-t border-border/40 pt-4 mt-2">
                 <ShieldCheck className="size-3.5 text-primary" />
-                <span>{lang === "ne" ? "हामी तपाईंको व्यक्तिगत डाटा सुरक्षित राख्छौं।" : "Your verification details are securely transmitted."}</span>
+                <span>
+                  {lang === "ne"
+                    ? "हामी तपाईंको व्यक्तिगत डाटा सुरक्षित राख्छौं।"
+                    : "Your verification details are securely transmitted."}
+                </span>
               </div>
             </form>
           )}
