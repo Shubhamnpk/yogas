@@ -9,6 +9,7 @@ import {
   FileText,
   Hourglass,
   Loader2,
+  Mail,
   PackageCheck,
   Search,
   Store,
@@ -323,6 +324,12 @@ function AdminDashboard() {
   const usersQ = usePaginatedQuery(api.admin.listUsers, opts, { initialNumItems: 50 });
   const entriesQ = usePaginatedQuery(api.admin.listEntries, opts, { initialNumItems: 50 });
   const logsQ = usePaginatedQuery(api.admin.listAuditLogs, opts, { initialNumItems: 50 });
+  const messagesQ = usePaginatedQuery(
+    api.contact.listContactMessages,
+    sessionToken ? { sessionToken } : "skip",
+    { initialNumItems: 25 },
+  );
+  const contactStats = useQuery(api.contact.contactStats, opts);
 
   const reviewDealer = useMutation(api.admin.reviewDealer);
   const unapproveDealer = useMutation(api.admin.unapproveDealer);
@@ -333,6 +340,7 @@ function AdminDashboard() {
   const bulkReview = useMutation(api.admin.bulkReviewDealers);
   const bulkDelete = useMutation(api.admin.bulkDeleteDealers);
   const bulkCancel = useMutation(api.admin.bulkCancelEntries);
+  const updateContactStatus = useMutation(api.contact.updateContactStatus);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedDealers, setSelectedDealers] = useState<Id<"dealers">[]>([]);
@@ -344,6 +352,7 @@ function AdminDashboard() {
   const users = usersQ.results ?? [];
   const entries = entriesQ.results ?? [];
   const logs = logsQ.results ?? [];
+  const messages = messagesQ.results ?? [];
 
   const toggleSelectDealer = (id: Id<"dealers">) => {
     setSelectedDealers((prev) =>
@@ -476,6 +485,22 @@ function AdminDashboard() {
     }
   };
 
+  const handleContactStatus = async (
+    messageId: Id<"contactMessages">,
+    status: "read" | "replied" | "archived",
+  ) => {
+    if (!user) return;
+    setBusy(messageId);
+    try {
+      await updateContactStatus({ ...sessionArgs(sessionToken), messageId, status });
+      toast.success(t("dashboard:contactStatusUpdated"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("dashboard:somethingWentWrong"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8 pb-16">
       <div>
@@ -601,6 +626,13 @@ function AdminDashboard() {
               className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
             >
               <FileText className="size-3.5 text-primary" /> {t("dashboard:auditLog")}
+            </TabsTrigger>
+            <TabsTrigger
+              value="messages"
+              className="rounded-xl px-3.5 text-xs font-semibold gap-1.5 shrink-0"
+            >
+              <Mail className="size-3.5 text-primary" />{" "}
+              {t("dashboard:messagesCount", { count: contactStats?.new ?? 0 })}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1389,6 +1421,120 @@ function AdminDashboard() {
             onLoad={() => logsQ.loadMore(50)}
             count={logsQ.results?.length}
             total={stats?.logs}
+          />
+        </TabsContent>
+
+        {/* Tab 6: Contact Messages */}
+        <TabsContent value="messages" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="font-bold text-foreground">{t("dashboard:contactMessages")}</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("dashboard:contactMessagesHint")}
+              </p>
+            </div>
+            <div className="flex gap-1.5 items-center">
+              <span className="text-xs font-semibold text-muted-foreground">
+                {t("dashboard:showingEntries", {
+                  count: messages.length,
+                  total: contactStats?.total ?? 0,
+                })}
+              </span>
+            </div>
+          </div>
+
+          {messagesQ.status === "LoadingFirstPage" ? (
+            <div className="grid h-32 place-items-center rounded-3xl border border-border/80 bg-card shadow-soft">
+              <Loader2 className="size-5 animate-spin text-primary" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="rounded-3xl border border-border/80 bg-card shadow-soft p-10 text-center text-muted-foreground text-sm">
+              {t("dashboard:noMessages")}
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {messages.map((m) => (
+                <div
+                  key={m._id}
+                  className={cn(
+                    "rounded-2xl border bg-card p-4 shadow-soft space-y-2",
+                    m.status === "new" ? "border-primary/40" : "border-border/80",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-foreground truncate">{m.name}</span>
+                        <a
+                          href={`mailto:${m.email}`}
+                          className="text-xs font-semibold text-primary hover:underline"
+                        >
+                          {m.email}
+                        </a>
+                        {m.status === "new" ? (
+                          <Badge className="bg-primary/15 text-primary border-transparent">
+                            {t("dashboard:messageNew")}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">{t(`dashboard:message${m.status}`)}</Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {t(`dashboard:topic${m.topic}`)} · {formatDateTime(m._creationTime)}
+                      </p>
+                      {m.subject ? (
+                        <p className="text-sm font-semibold text-foreground mt-1">{m.subject}</p>
+                      ) : null}
+                      <p className="text-sm text-foreground/80 mt-1 whitespace-pre-wrap break-words">
+                        {m.message}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      {m.status !== "read" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-lg text-xs"
+                          disabled={busy === m._id}
+                          onClick={() => handleContactStatus(m._id, "read")}
+                        >
+                          {t("dashboard:markRead")}
+                        </Button>
+                      ) : null}
+                      {m.status !== "replied" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-lg text-xs"
+                          disabled={busy === m._id}
+                          onClick={() => handleContactStatus(m._id, "replied")}
+                        >
+                          {t("dashboard:markReplied")}
+                        </Button>
+                      ) : null}
+                      {m.status !== "archived" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 rounded-lg text-xs text-muted-foreground"
+                          disabled={busy === m._id}
+                          onClick={() => handleContactStatus(m._id, "archived")}
+                        >
+                          {t("dashboard:archive")}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <AdminLoadMore
+            status={messagesQ.status}
+            onLoad={() => messagesQ.loadMore(25)}
+            count={messagesQ.results?.length}
+            total={contactStats?.total}
           />
         </TabsContent>
       </Tabs>

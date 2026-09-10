@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useMutation } from "convex/react";
 import { Mail, MapPin, Send, CheckCircle2, ShieldCheck, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { contact } from "@/lib/i18n/ns/contact";
 import { appLocale } from "@/lib/i18n";
+import { getDeviceId } from "@/lib/auth";
+import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_site/contact")({
@@ -33,9 +36,10 @@ function ContactPage() {
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [topic, setTopic] = useState("general");
+  const [topic, setTopic] = useState<"general" | "depot" | "quota" | "bug">("general");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const submitContact = useMutation(api.contact.submitContactMessage);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,11 +53,37 @@ function ContactPage() {
     }
 
     setLoading(true);
-    // Simulate API request
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setLoading(false);
-    setSubmitted(true);
-    toast.success(lang === "ne" ? "सन्देश सफलतापूर्वक पठाइयो!" : "Message sent successfully!");
+    try {
+      const deviceId = getDeviceId();
+      const result = await submitContact({
+        name,
+        email,
+        topic,
+        ...(subject ? { subject } : {}),
+        message,
+        ...(deviceId ? { deviceId } : {}),
+      });
+      if (result.ok) {
+        setSubmitted(true);
+        toast.success(lang === "ne" ? "सन्देश सफलतापूर्वक पठाइयो!" : "Message sent successfully!");
+      } else {
+        toast.error(
+          lang === "ne"
+            ? "सन्देश पठाउन सकिएन। पछि फेरि प्रयास गर्नुहोस्।"
+            : "Could not send your message. Please try again later.",
+        );
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : lang === "ne"
+            ? "सन्देश पठाउन सकिएन। पछि फेरि प्रयास गर्नुहोस्।"
+            : "Could not send your message. Please try again later.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSendMailto = () => {
@@ -216,7 +246,9 @@ function ContactPage() {
                     id="topic"
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
+                    onChange={(e) =>
+                      setTopic(e.target.value as "general" | "depot" | "quota" | "bug")
+                    }
                   >
                     <option value="general">
                       {lang === "ne" ? "साधारण सोधपुछ" : "General Inquiry"}

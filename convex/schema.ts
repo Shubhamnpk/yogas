@@ -112,6 +112,23 @@ export default defineSchema({
     .index("by_account_created", ["accountId", "createdAt"])
     .index("by_created", ["createdAt"]),
 
+  contactMessages: defineTable({
+    name: v.string(),
+    email: v.string(),
+    topic: v.string(),
+    subject: v.optional(v.string()),
+    message: v.string(),
+    status: v.union(
+      v.literal("new"),
+      v.literal("read"),
+      v.literal("replied"),
+      v.literal("archived"),
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_created", ["createdAt"]),
+
   loginAttempts: defineTable({
     key: v.string(),
     failures: v.number(),

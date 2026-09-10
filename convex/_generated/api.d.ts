@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as app from "../app.js";
 import type * as auth from "../auth.js";
 import type * as cleanup from "../cleanup.js";
+import type * as contact from "../contact.js";
 import type * as crons from "../crons.js";
 import type * as notifications from "../notifications.js";
 import type * as waitlist from "../waitlist.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   app: typeof app;
   auth: typeof auth;
   cleanup: typeof cleanup;
+  contact: typeof contact;
   crons: typeof crons;
   notifications: typeof notifications;
   waitlist: typeof waitlist;
